@@ -9,6 +9,10 @@
   const ui = {}
   let data = null
 
+  const MAP_W = 404
+  const MAP_H = 322
+  let zoom = 6
+
   function mount(pane) {
     ui.icon = h('span.wx-icon', { text: '·' })
     ui.temp = h('span.wx-temp', { text: '—' })
@@ -32,21 +36,68 @@
     ui.hours = h('div.wx-hours')
     ui.days = h('div.wx-days')
 
-    pane.append(
+    ui.map = h('div.wx-map')
+    ui.mapNote = h('span.wx-mapnote', { text: 'Loading map…' })
+    ui.map.append(ui.mapNote)
+    const zoomBtn = (label, delta) =>
       h(
-        'div.wx-head',
+        'button.wx-zoom',
+        {
+          onclick: (e) => {
+            e.stopPropagation()
+            zoom = Math.max(3, Math.min(11, zoom + delta))
+            loadMap()
+          },
+        },
+        label
+      )
+    ui.zoomIn = zoomBtn('+', 1)
+    ui.zoomOut = zoomBtn('−', -1)
+    const mapWrap = h(
+      'div.wx-mapwrap',
+      {},
+      ui.map,
+      h('div.wx-zooms', {}, ui.zoomIn, ui.zoomOut),
+      h('span.wx-attrib', { text: '© OpenStreetMap · CARTO' })
+    )
+
+    pane.append(
+      h('div.wx-head', {}, ui.icon, h('div.wx-now', {}, h('div.wx-line', {}, ui.temp, ui.text), ui.where), h('span.spacer'), ui.windy),
+      h(
+        'div.wx-cols',
         {},
-        ui.icon,
-        h('div.wx-now', {}, h('div.wx-line', {}, ui.temp, ui.text), ui.where),
-        h('span.spacer'),
-        ui.windy
-      ),
-      h('span.kicker.wx-k', { text: 'Next hours' }),
-      ui.hours,
-      h('span.kicker.wx-k', { text: 'Next days' }),
-      ui.days
+        h(
+          'div.wx-left',
+          {},
+          h('span.kicker.wx-k', { text: 'Next hours' }),
+          ui.hours,
+          h('span.kicker.wx-k', { text: 'Next days' }),
+          ui.days
+        ),
+        mapWrap
+      )
     )
     render()
+    loadMap()
+  }
+
+  let mapToken = 0
+
+  async function loadMap() {
+    const mine = ++mapToken
+    ui.mapNote.textContent = 'Loading map…'
+    ui.mapNote.style.display = ''
+    const url = await api.mapImage({ zoom, width: MAP_W, height: MAP_H })
+    // A later request may have finished first; do not let it be overwritten.
+    if (mine !== mapToken) return
+    if (!url) {
+      ui.mapNote.textContent = 'Map unavailable offline'
+      ui.map.style.backgroundImage = ''
+      return
+    }
+    ui.map.style.backgroundImage = `url("${url}")`
+    ui.mapNote.style.display = 'none'
+    I.syncShape()
   }
 
   function render() {
@@ -116,14 +167,20 @@
     id: 'weather',
     label: 'Weather',
     icon: svg('<path d="M7 18h9.5a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.6-1.2A4 4 0 0 0 7 18z"/>'),
-    width: 560,
-    height: 386,
+    width: 792,
+    height: 452,
     mount,
     update: (kind, payload) => {
       if (kind !== 'weather') return
+      const hadPlace = !!(data && data.lat !== undefined)
       data = payload
       render()
+      if (!hadPlace && payload && payload.lat !== undefined) loadMap()
+      void hadPlace
     },
-    shown: () => I.pump(200),
+    shown: () => {
+      if (!ui.map.style.backgroundImage) loadMap()
+      I.pump(200)
+    },
   })
 })()

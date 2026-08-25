@@ -6,12 +6,14 @@ const S = {
   timers: require('./services/timers'),
   clip: require('./services/clipboard'),
   audio: require('./services/audio'),
+  brightness: require('./services/brightness'),
   apps: require('./services/apps'),
   notifs: require('./services/notifications'),
   capture: require('./services/capture'),
   weather: require('./services/weather'),
   store: require('./services/store'),
   convert: require('./services/convert'),
+  map: require('./services/map'),
 }
 
 // Every service pushes to one channel; the renderer subscribes by name.
@@ -21,6 +23,7 @@ const FEEDS = [
   ['timers', S.timers],
   ['clipboard', S.clip],
   ['audio', S.audio],
+  ['brightness', S.brightness],
   ['notifications', S.notifs],
   ['capture', S.capture],
   ['weather', S.weather],
@@ -33,6 +36,7 @@ function snapshot(cfg) {
     timers: S.timers.current(),
     clipboard: S.clip.current(),
     audio: S.audio.current(),
+    brightness: S.brightness.current(),
     notifications: S.notifs.current(),
     capture: S.capture.current(),
     weather: S.weather.current(),
@@ -40,6 +44,7 @@ function snapshot(cfg) {
     config: {
       collapseDelayMs: cfg.collapseDelayMs,
       hoverDelayMs: cfg.hoverDelayMs,
+      dormantDelayMs: cfg.dormantDelayMs,
       shadowPadding: cfg.shadowPadding,
       hotkeys: cfg.hotkeys,
     },
@@ -100,6 +105,7 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
 
   ipcMain.handle('island:audio-volume', (_e, pct) => S.audio.setVolume(pct))
   ipcMain.handle('island:audio-mute', () => S.audio.toggleMute())
+  ipcMain.handle('island:brightness', (_e, pct) => S.brightness.setValue(pct))
 
   ipcMain.handle('island:apps-list', () => S.apps.list().map(({ file, exec, ...rest }) => rest))
   ipcMain.handle('island:app-icon', (_e, id) => S.apps.iconDataUrl(id))
@@ -128,10 +134,25 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
   // Windy's own forecast API needs an account key, so the panel shows
   // Open-Meteo's numbers and hands the map off to Windy in the browser.
   ipcMain.handle('island:open-windy', () => {
-    const w = S.weather.current()
-    if (!w || w.lat === undefined || w.lon === undefined) return false
-    shell.openExternal(`https://www.windy.com/?${w.lat},${w.lon},9`)
+    const c = coords()
+    if (!c) return false
+    shell.openExternal(`https://www.windy.com/?${c.lat},${c.lon},9`)
     return true
+  })
+
+  // The map only needs coordinates, which survive a failed forecast: the
+  // geocode is cached to disk, so the map still draws when the API is down.
+  function coords() {
+    const w = S.weather.current()
+    if (w && w.lat !== undefined && w.lon !== undefined) return { lat: w.lat, lon: w.lon }
+    const p = S.store.read('weather-place', null)
+    if (p && Number.isFinite(p.lat) && Number.isFinite(p.lon)) return { lat: p.lat, lon: p.lon }
+    return null
+  }
+
+  ipcMain.handle('island:map', (_e, opts) => {
+    const c = coords()
+    return c ? S.map.render({ ...c, ...(opts || {}) }) : null
   })
 
   ipcMain.handle('island:convert-pick', (_e, mode) => S.convert.pick(mode))
@@ -158,6 +179,7 @@ function startServices(cfg) {
   S.timers.start()
   S.clip.start(cfg.clipboard)
   S.audio.start()
+  S.brightness.start()
   S.mpris.start()
   S.notifs.start()
   S.weather.start(cfg.weatherCity, undefined, cfg.weatherLat, cfg.weatherLon)

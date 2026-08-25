@@ -54,6 +54,7 @@ class Weather extends EventEmitter {
     }
     this.timer = null
     this.retry = null
+    this.attempt = 0
     this.place = null
     this.pollMs = 15 * 60 * 1000
   }
@@ -88,13 +89,18 @@ class Weather extends EventEmitter {
     }
   }
 
-  // A single miss should not cost a whole poll interval of blank weather.
+  // A single miss should not cost a whole poll interval of blank weather. This
+  // host has been measured timing out on one call and answering the next in
+  // half a second, so the first retries come quickly before backing off.
   scheduleRetry() {
     if (this.retry) return
+    const delays = [4000, 8000, 15000, 30000]
+    const wait = delays[Math.min(this.attempt, delays.length - 1)]
+    this.attempt++
     this.retry = setTimeout(() => {
       this.retry = null
       this.sample()
-    }, 60 * 1000)
+    }, wait)
   }
 
   async sample() {
@@ -124,6 +130,7 @@ class Weather extends EventEmitter {
       if (this.state.available) return
       return this.set({ ...this.state, available: false })
     }
+    this.attempt = 0
     const [text, icon] = CODES[cur.weather_code] || ['—', '·']
     this.set({
       available: true,

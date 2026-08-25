@@ -53,6 +53,9 @@ function ago(ts) {
 
 // MacBook-notch proportions: short across, chunky down.
 const SIZES = {
+  // Left alone long enough the pill thins out, so it stops being furniture at
+  // the top of the screen. Any hover brings it straight back.
+  dormant: { w: 118, h: 24, r: 12 },
   idle: { w: 196, h: 36, r: 18 },
   ambient: { w: 348, h: 40, r: 20 },
   activity: { w: 428, h: 106, r: 26 },
@@ -66,6 +69,8 @@ const el = {
   root: document.documentElement,
   notch: $('notch'),
   volume: $('volume'),
+  brightness: $('brightness'),
+  sliders: [$('volume'), $('brightness')],
   nav: $('nav'),
   tabsBar: $('tabs'),
   panes: $('panes'),
@@ -80,7 +85,8 @@ const state = {
   pinned: false,
   hovering: false,
   activity: false,
-  cfg: { collapseDelayMs: 700, hoverDelayMs: 220 },
+  dormant: false,
+  cfg: { collapseDelayMs: 700, hoverDelayMs: 220, dormantDelayMs: 90000 },
   feeds: {},
   toast: null,
 }
@@ -181,7 +187,36 @@ function ambientAvailable() {
 
 function baseMode() {
   if (state.activity) return 'activity'
-  return ambientAvailable() ? 'ambient' : 'idle'
+  if (ambientAvailable()) return 'ambient'
+  return state.dormant ? 'dormant' : 'idle'
+}
+
+// dormant borrows the idle layer; it is the same content, just less of it.
+const LAYER_FOR = {
+  dormant: 'idle',
+  idle: 'idle',
+  ambient: 'ambient',
+  activity: 'activity',
+  expanded: 'expanded',
+}
+
+let dormantTimer = null
+
+function armDormant() {
+  clearTimeout(dormantTimer)
+  if (state.mode !== 'idle') return
+  dormantTimer = setTimeout(() => {
+    if (state.mode !== 'idle') return
+    state.dormant = true
+    setMode('dormant')
+  }, state.cfg.dormantDelayMs)
+}
+
+function wake() {
+  clearTimeout(dormantTimer)
+  if (!state.dormant) return
+  state.dormant = false
+  if (state.mode === 'dormant') setMode(baseMode())
 }
 
 // A new track announces itself with the full card, then gets out of the way.
@@ -206,8 +241,9 @@ function setMode(mode) {
     delete el.notch.dataset.hover
   }
   el.notch.dataset.state = mode
-  for (const layer of el.layers) layer.classList.toggle('on', layer.dataset.layer === mode)
-  el.volume.classList.toggle('off', mode !== 'expanded')
+  const wanted = LAYER_FOR[mode] || mode
+  for (const layer of el.layers) layer.classList.toggle('on', layer.dataset.layer === wanted)
+  for (const s of el.sliders) s.classList.toggle('off', mode !== 'expanded')
   // Hand focus back when the panel closes; a collapsed pill has nothing to
   // type into and should not be swallowing the user's keystrokes.
   if (mode !== 'expanded' && previous === 'expanded') api.releaseFocus()
@@ -216,6 +252,8 @@ function setMode(mode) {
     const tab = tabs.get(state.tab)
     if (tab && tab.shown) tab.shown()
   }
+  if (mode === 'idle') armDormant()
+  else clearTimeout(dormantTimer)
 }
 
 function settle() {
@@ -227,6 +265,7 @@ let hoverTimer = null
 let collapseTimer = null
 
 function onHover() {
+  wake()
   clearTimeout(collapseTimer)
   if (state.mode === 'expanded') return
   // Grow a touch straight away — the acknowledgement should not wait out the
@@ -474,6 +513,7 @@ window.Island = {
   onFeed,
   toast,
   showActivity,
+  wake,
   segmented,
   updateAmbient,
   baseMode,

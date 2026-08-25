@@ -25,6 +25,8 @@ const DEFAULTS = {
   // Dwell before hover opens the panel; the top of the screen sees a lot of
   // incidental mouse traffic.
   hoverDelayMs: 220,
+  // Left alone this long with nothing playing, the pill thins out.
+  dormantDelayMs: 90000,
   // The X11 shape extension clips rendering as well as input, so a drop shadow
   // only survives if the shape is padded out to contain it — and that padding
   // then swallows clicks aimed at the desktop. 0 means no shadow and no dead

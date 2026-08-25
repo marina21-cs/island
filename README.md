@@ -146,10 +146,37 @@ The tray's **Start at login** checkbox toggles the same autostart entry, so it
 stays in step with the installer rather than setting up a second, unsupervised
 launch path.
 
+## Brightness
+
+The slider works today, but in software: `xrandr --brightness` on the primary
+output, which is a gamma curve. It dims what you see; it does not dim the
+backlight, so it saves no power and cannot go above 100%.
+
+Hardware control needs write access to `/sys/class/backlight/amdgpu_bl1`,
+which is root-only by default. Grant it once and the panel switches over on
+its own — it prefers hardware whenever the file is writable:
+
+```bash
+echo 'ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"' \
+  | sudo tee /etc/udev/rules.d/90-backlight.rules
+sudo usermod -aG video "$USER"
+```
+
+Log out and back in for the group to take effect.
+
+## Weather and the map
+
+Numbers come from Open-Meteo: no API key, hourly for eight hours and daily for
+six. The map is CARTO's dark basemap, fetched and composited in the main
+process — the renderer's CSP allows no remote images, and it should stay that
+way — then cached for a day under the temp directory.
+
+Windy's own forecast API needs an account key, so the **Windy** button opens
+windy.com at the resolved coordinates rather than pretending to have data it
+cannot fetch. Add a key and the numbers could come from Windy instead.
+
 ## Not wired up
 
-- **Brightness slider** — `/sys/class/backlight/amdgpu_bl1` is not writable;
-  you are in `wheel` but not `video`. Needs a one-time udev rule with sudo.
 - **FPS counter** — the reference shows one, but FPS is per-application. It
   needs a hook like MangoHud, not a system readout. The chip shows CPU instead.
 

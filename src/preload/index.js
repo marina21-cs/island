@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('island', {
   onTimers: on('island:timers'),
   onClipboard: on('island:clipboard'),
   onAudio: on('island:audio'),
+  onBrightness: on('island:brightness'),
   onNotifications: on('island:notifications'),
   onCapture: on('island:capture'),
   onWeather: on('island:weather'),
@@ -27,6 +28,7 @@ contextBridge.exposeInMainWorld('island', {
 
   setVolume: (pct) => ipcRenderer.invoke('island:audio-volume', pct),
   toggleMute: () => ipcRenderer.invoke('island:audio-mute'),
+  setBrightness: (pct) => ipcRenderer.invoke('island:brightness', pct),
 
   listApps: () => ipcRenderer.invoke('island:apps-list'),
   appIcon: (id) => ipcRenderer.invoke('island:app-icon', id),
@@ -49,6 +51,7 @@ contextBridge.exposeInMainWorld('island', {
   pauseClips: (paused) => ipcRenderer.invoke('island:clip-pause', paused),
 
   openWindy: () => ipcRenderer.invoke('island:open-windy'),
+  mapImage: (opts) => ipcRenderer.invoke('island:map', opts),
   pickForConvert: (mode) => ipcRenderer.invoke('island:convert-pick', mode),
   convert: (mode, files) => ipcRenderer.invoke('island:convert-run', mode, files),
   revealConverted: (file) => ipcRenderer.invoke('island:convert-reveal', file),

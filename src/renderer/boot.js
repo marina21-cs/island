@@ -28,30 +28,38 @@
     }
   }
 
-  /* --- volume ------------------------------------------------------------ */
+  /* --- volume and brightness --------------------------------------------- */
 
-  const track = $('volTrack')
-
-  function volumeFromEvent(e) {
-    const r = track.getBoundingClientRect()
-    return Math.round(Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)) * 100)
+  // Both sliders behave identically; only the value they push differs.
+  function wireSlider(track, apply) {
+    const valueAt = (e) => {
+      const r = track.getBoundingClientRect()
+      return Math.round(Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)) * 100)
+    }
+    let dragging = false
+    track.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
+      dragging = true
+      apply(valueAt(e))
+    })
+    window.addEventListener('mousemove', (e) => {
+      if (dragging) apply(valueAt(e))
+    })
+    window.addEventListener('mouseup', () => (dragging = false))
+    track.addEventListener('wheel', (e) => {
+      e.preventDefault()
+      apply(current() + (e.deltaY < 0 ? 4 : -4))
+    })
+    let current = () => 0
+    return { setReader: (fn) => (current = fn) }
   }
 
-  let dragging = false
-  track.addEventListener('mousedown', (e) => {
-    e.stopPropagation()
-    dragging = true
-    api.setVolume(volumeFromEvent(e))
-  })
-  window.addEventListener('mousemove', (e) => {
-    if (dragging) api.setVolume(volumeFromEvent(e))
-  })
-  window.addEventListener('mouseup', () => (dragging = false))
-  track.addEventListener('wheel', (e) => {
-    e.preventDefault()
-    const cur = (state.feeds.audio && state.feeds.audio.volume) || 0
-    api.setVolume(cur + (e.deltaY < 0 ? 4 : -4))
-  })
+  const vol = wireSlider($('volTrack'), (v) => api.setVolume(v))
+  vol.setReader(() => (state.feeds.audio && state.feeds.audio.volume) || 0)
+
+  const bri = wireSlider($('briTrack'), (v) => api.setBrightness(v))
+  bri.setReader(() => (state.feeds.brightness && state.feeds.brightness.value) || 0)
+
   $('volMute').addEventListener('click', (e) => {
     e.stopPropagation()
     api.toggleMute()
@@ -134,6 +142,16 @@
       $('idleMeta').textContent = notable ? `${capacity}%${charging ? ' ⌁' : ''}` : ''
     }
 
+    if (kind === 'brightness' && data) {
+      $('briPct').textContent = data.available ? `${data.value}%` : '—'
+      $('briFill').style.height = `${data.available ? data.value : 0}%`
+      $('brightness').classList.toggle('disabled', !data.available)
+      $('briIcon').title =
+        data.mode === 'software'
+          ? 'Brightness (software dim — see README for hardware control)'
+          : 'Brightness'
+    }
+
     if (kind === 'audio' && data) {
       $('volume').classList.toggle('muted', !!data.muted)
       $('volPct').textContent = data.available ? `${data.volume}%` : '—'
@@ -178,6 +196,7 @@
   api.onTimers((d) => I.dispatch('timers', d))
   api.onClipboard((d) => I.dispatch('clipboard', d))
   api.onAudio((d) => I.dispatch('audio', d))
+  api.onBrightness((d) => I.dispatch('brightness', d))
   api.onNotifications((d) => I.dispatch('notifications', d))
   api.onCapture((d) => I.dispatch('capture', d))
   api.onWeather((d) => I.dispatch('weather', d))
@@ -189,7 +208,7 @@
     if (snap.config.shadowPadding > 0) document.documentElement.dataset.shadow = 'on'
 
     for (const kind of [
-      'vitals', 'audio', 'capture', 'weather',
+      'vitals', 'audio', 'brightness', 'capture', 'weather',
       'timers', 'clipboard', 'notifications', 'media',
     ]) {
       if (snap[kind] !== undefined) I.dispatch(kind, snap[kind])
