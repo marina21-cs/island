@@ -28,18 +28,6 @@
     }
   }
 
-  /* --- stat chips -------------------------------------------------------- */
-
-  const chip = (k) => document.querySelector(`.chip[data-k="${k}"]`)
-
-  function paintChip(k, text, level) {
-    const node = chip(k)
-    if (!node) return
-    node.querySelector('span').textContent = text
-    node.classList.remove('warn', 'crit')
-    if (level) node.classList.add(level)
-  }
-
   /* --- volume ------------------------------------------------------------ */
 
   const track = $('volTrack')
@@ -69,13 +57,6 @@
     api.toggleMute()
   })
 
-  /* --- recording chip ---------------------------------------------------- */
-
-  $('chipRec').addEventListener('click', (e) => {
-    e.stopPropagation()
-    api.toggleRecord()
-  })
-
   /* --- feed handling ----------------------------------------------------- */
 
   I.onFeed((kind, data) => {
@@ -87,6 +68,10 @@
       // No point showing a green equaliser when there is no audio at all.
       $('idleWave').classList.toggle('hidden', !has)
       $('ambWave').classList.toggle('hidden', !has)
+      // The orb wears the cover art while something plays, and falls back to
+      // its own gradient when nothing does.
+      $('orbArt').style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
+      $('orb').classList.toggle('playing', !!playing)
       $('ambArt').style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
       if (has) {
         $('ambText').textContent = ''
@@ -99,27 +84,17 @@
         }
         requestAnimationFrame(setMarquee)
       }
-      $('idleMeta').textContent = has ? data.title : ''
       I.updateAmbient()
       I.settle()
     }
 
-    if (kind === 'vitals' && data) {
-      paintChip('cpu', `${data.cpu}%`, data.cpu >= 85 ? 'crit' : data.cpu >= 60 ? 'warn' : null)
-      const memPct = Math.round(data.mem.pct)
-      paintChip('ram', `${memPct}%`, memPct >= 90 ? 'crit' : memPct >= 75 ? 'warn' : null)
-      if (data.gpu) {
-        paintChip('gpu', `${data.gpu.temp}°`, data.gpu.temp >= 85 ? 'crit' : data.gpu.temp >= 72 ? 'warn' : null)
-      } else if (data.temp !== null) {
-        paintChip('gpu', `${data.temp}°`, null)
-      } else {
-        paintChip('gpu', '—', null)
-      }
-      if (data.battery && data.battery.capacity !== null && I.state.mode === 'idle') {
-        const charging = data.battery.status === 'Charging' || data.ac === true
-        const meta = $('idleMeta')
-        if (!meta.textContent) meta.textContent = `${data.battery.capacity}%${charging ? ' ⌁' : ''}`
-      }
+    // Machine stats live in the Stats panel now, not scattered across the
+    // desktop. The collapsed pill only speaks up for battery worth acting on.
+    if (kind === 'vitals' && data && data.battery && data.battery.capacity !== null) {
+      const { capacity, status } = data.battery
+      const charging = status === 'Charging' || data.ac === true
+      const notable = charging || capacity <= 20
+      $('idleMeta').textContent = notable ? `${capacity}%${charging ? ' ⌁' : ''}` : ''
     }
 
     if (kind === 'audio' && data) {
@@ -129,12 +104,7 @@
     }
 
     if (kind === 'capture' && data) {
-      const rec = $('chipRec')
-      rec.classList.toggle('on', !!data.recording)
-      rec.querySelector('.rectime').textContent = data.recording
-        ? I.clockText((data.seconds || 0) * 1000)
-        : 'REC'
-      rec.title = data.recording ? 'Stop recording' : 'Start recording'
+      $('idleRec').classList.toggle('on', !!data.recording)
     }
 
     if (kind === 'timers') {

@@ -202,4 +202,23 @@ function launch(appId) {
   }
 }
 
-module.exports = { list, iconDataUrl, launch, parseExec }
+// Resolve an icon for something that is not necessarily an installed app:
+// MPRIS players identify themselves with a DesktopEntry id, but browsers hand
+// out ids like "firefox" that may or may not match an entry we indexed.
+function iconDataUrlFor(nameOrId) {
+  if (!nameOrId) return null
+  const direct = list().find((a) => a.id === nameOrId)
+  if (direct) return iconDataUrl(direct.id)
+  const file = iconFor(nameOrId)
+  if (!file) return null
+  const mime = MIME[path.extname(file).toLowerCase()]
+  if (!mime) return null
+  try {
+    if (fs.statSync(file).size > MAX_ICON_BYTES) return null
+    return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
+module.exports = { list, iconDataUrl, iconDataUrlFor, launch, parseExec }

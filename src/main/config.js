@@ -17,6 +17,9 @@ const DEFAULTS = {
   clipboard: { pollMs: 600, max: 60 },
   vitals: { pollMs: 2000 },
   weatherCity: 'Manila',
+  // Set these to skip the geocoding lookup entirely (it is the slow half).
+  weatherLat: null,
+  weatherLon: null,
   // Collapse the expanded panel this long after the pointer leaves it.
   collapseDelayMs: 700,
   // Dwell before hover opens the panel; the top of the screen sees a lot of

@@ -13,37 +13,42 @@
     shot: '<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.4"/>',
     rec: '<rect x="3" y="6" width="12" height="12" rx="2.5"/><path d="M15 10.5 21 7v10l-6-3.5z"/>',
     stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2"/>',
+    cloud: '<path d="M7 18h9.5a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.6-1.2A4 4 0 0 0 7 18z"/>',
   }
 
   const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const DOW_LONG = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   const ui = {}
 
   function mount(pane) {
-    ui.art = h('span.art.lg')
-    ui.title = h('div.hm-title', { text: 'Nothing playing' })
-    ui.artist = h('div.hm-artist', { text: '—' })
-    ui.fill = h('i')
-    ui.time = h('span.hm-time.tiny.muted', { text: '' })
+    ui.art = h('div.hm-art.empty')
+    ui.badgeImg = h('img', { alt: '' })
+    ui.badge = h('span.hm-badge', {}, ui.badgeImg)
+    const artwrap = h('div.hm-artwrap', {}, ui.art, ui.badge)
 
-    const btn = (act, icon, cls) =>
+    ui.title = h('div.hm-title', { text: 'Nothing playing' })
+    ui.album = h('div.hm-album', { text: '' })
+    ui.artist = h('div.hm-artist', { text: '' })
+    ui.time = h('span.hm-time', { text: '' })
+
+    const btn = (act, icon) =>
       h(
-        `button.iconbtn${cls || ''}`,
+        'button.iconbtn',
         {
-          'data-act': act,
           onclick: (e) => {
             e.stopPropagation()
             api.media(act)
           },
         },
-        h('span', { html: svg(icon, act === 'playpause' ? 15 : 13) })
+        h('span', { html: svg(icon, 13) })
       )
 
     ui.prev = btn('prev', ICONS.prev)
     ui.playIcon = h('span', { html: svg(ICONS.play, 15) })
     ui.play = h(
-      'button.iconbtn.hm-play',
+      'button.iconbtn',
       {
         onclick: (e) => {
           e.stopPropagation()
@@ -57,21 +62,23 @@
     const media = h(
       'div.hm-media',
       {},
-      ui.art,
+      artwrap,
       h(
         'div.hm-meta',
         {},
         ui.title,
+        ui.album,
         ui.artist,
-        h('span.hm-bar', {}, ui.fill),
         h('div.hm-ctl', {}, ui.prev, ui.play, ui.next, ui.time)
       )
     )
 
     ui.month = h('div.hm-month', { text: MONTHS[new Date().getMonth()] })
     ui.week = h('div.hm-week')
-    ui.weather = h('div.hm-weather.tiny', { text: '—' })
-    const cal = h('div.hm-cal', {}, ui.month, ui.week, ui.weather)
+    ui.eventIcon = h('span', { html: svg(ICONS.cloud, 12) })
+    ui.eventText = h('span', { text: '—' })
+    ui.event = h('div.hm-event', {}, ui.eventIcon, ui.eventText)
+    const cal = h('div.hm-cal', {}, h('div.hm-caltop', {}, ui.month, ui.week), ui.event)
 
     ui.shotBtn = h(
       'button.roundbtn',
@@ -106,7 +113,7 @@
       h('div.hm-action', {}, ui.recBtn, ui.recLabel)
     )
 
-    pane.append(h('div.hm-grid', {}, media, cal, actions))
+    pane.append(h('div.hm-grid', {}, media, h('div.hm-calwrap', {}, h('span.hm-sep'), cal), actions))
     renderCalendar()
     setInterval(renderClock, 10000)
     renderClock()
@@ -116,7 +123,7 @@
     const now = new Date()
     ui.month.textContent = MONTHS[now.getMonth()]
     ui.week.textContent = ''
-    // A week centred on today, so tomorrow and yesterday are both in view.
+    // A week centred on today, so yesterday and tomorrow are both in view.
     const start = new Date(now)
     start.setDate(now.getDate() - 3)
     for (let i = 0; i < 7; i++) {
@@ -128,8 +135,10 @@
         h(
           `div.hm-day${isToday ? '.today' : ''}${weekend ? '.weekend' : ''}`,
           {},
-          h('span.hm-dow', { text: DOW[d.getDay()] }),
-          h('span.hm-date', { text: String(d.getDate()) })
+          // Today spells its weekday out; the rest stay single letters, so the
+          // eye lands on today without needing the colour alone to say so.
+          h('span.hm-dow', { text: isToday ? DOW_LONG[d.getDay()] : DOW[d.getDay()] }),
+          h('span.hm-datebox', { text: String(d.getDate()) })
         )
       )
     }
@@ -145,18 +154,25 @@
     }
     const w = I.state.feeds.weather
     const time = `${now.getHours()}:${pad(now.getMinutes())}`
-    ui.weather.textContent =
-      w && w.available ? `${w.icon} ${w.temp}°C ${w.city} · ${time}` : `· ${time}`
+    // This slot holds weather rather than a calendar summary: the panel has no
+    // calendar access, and "Nothing for today" would be a claim it cannot make.
+    ui.eventText.textContent = w && w.available ? `${w.temp}°C ${w.city} · ${time}` : time
   }
 
   function update(kind, data) {
     if (kind === 'media') {
       const has = !!(data && data.available && data.title)
       ui.art.style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
+      ui.art.classList.toggle('empty', !(has && data.art))
+
+      const icon = has ? data.sourceIcon : null
+      if (icon) ui.badgeImg.src = icon
+      ui.badge.classList.toggle('on', !!icon)
+      ui.badge.title = has ? data.sourceName || data.source || '' : ''
+
       ui.title.textContent = has ? data.title : 'Nothing playing'
-      ui.artist.textContent = has ? data.artist || '—' : '—'
-      const pct = has && data.lengthMs > 0 ? Math.min(100, (data.positionMs / data.lengthMs) * 100) : 0
-      ui.fill.style.width = `${pct}%`
+      ui.album.textContent = has ? data.album || '' : ''
+      ui.artist.textContent = has ? data.artist || '' : ''
       ui.time.textContent =
         has && data.lengthMs > 0 ? `${I.clockText(data.positionMs)} / ${I.clockText(data.lengthMs)}` : ''
       ui.playIcon.innerHTML = svg(data && data.status === 'Playing' ? ICONS.pause : ICONS.play, 15)
@@ -179,8 +195,8 @@
     id: 'home',
     label: 'Home',
     icon: svg('<path d="M4 10.5 12 4l8 6.5V20H4z"/>'),
-    width: 484,
-    height: 132,
+    width: 648,
+    height: 158,
     mount,
     update,
   })

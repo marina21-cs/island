@@ -1,4 +1,5 @@
 const { EventEmitter } = require('events')
+const store = require('./store')
 
 // Open-Meteo needs no API key. Geocoding resolves the configured city once.
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search'
@@ -19,18 +20,30 @@ class Weather extends EventEmitter {
     super()
     this.state = { available: false, city: '', temp: null, text: '', icon: '' }
     this.timer = null
+    this.retry = null
     this.place = null
+    this.pollMs = 15 * 60 * 1000
   }
 
-  async start(city, pollMs = 15 * 60 * 1000) {
+  async start(city, pollMs = 15 * 60 * 1000, lat = null, lon = null) {
     this.city = city
+    this.pollMs = pollMs || 15 * 60 * 1000
+    if (lat !== null && lon !== null) this.place = { city, lat, lon, name: city }
+    // Geocoding is a one-time answer, so remember it. That host is markedly
+    // slower than the forecast one — measured at 7s against well under 1s —
+    // and looking the same city up every launch put the whole feature behind
+    // its worst day.
+    const cached = store.read('weather-place', null)
+    if (cached && cached.city === city && cached.lat && cached.lon) this.place = cached
     this.timer = setInterval(() => this.sample(), pollMs)
     await this.sample()
   }
 
-  async json(url) {
+  // Geocoding gets a longer budget than the forecast: it is called once and
+  // its host is slow, whereas a slow forecast just means stale numbers.
+  async json(url, timeoutMs = 8000) {
     const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 8000)
+    const t = setTimeout(() => ctrl.abort(), timeoutMs)
     try {
       const res = await fetch(url, { signal: ctrl.signal })
       if (!res.ok) return null
@@ -42,19 +55,38 @@ class Weather extends EventEmitter {
     }
   }
 
+  // A single miss should not cost a whole poll interval of blank weather.
+  scheduleRetry() {
+    if (this.retry) return
+    this.retry = setTimeout(() => {
+      this.retry = null
+      this.sample()
+    }, 60 * 1000)
+  }
+
   async sample() {
     if (!this.place) {
-      const geo = await this.json(`${GEO}?name=${encodeURIComponent(this.city)}&count=1`)
+      const geo = await this.json(`${GEO}?name=${encodeURIComponent(this.city)}&count=1`, 20000)
       const hit = geo && geo.results && geo.results[0]
-      // Offline or unknown city: stay unavailable and try again next tick.
-      if (!hit) return this.set({ ...this.state, available: false })
-      this.place = { lat: hit.latitude, lon: hit.longitude, name: hit.name }
+      // Offline, unknown city, or that slow host having a bad minute.
+      if (!hit) {
+        this.scheduleRetry()
+        return this.set({ ...this.state, available: false })
+      }
+      this.place = { city: this.city, lat: hit.latitude, lon: hit.longitude, name: hit.name }
+      store.write('weather-place', this.place)
     }
     const data = await this.json(
       `${FORECAST}?latitude=${this.place.lat}&longitude=${this.place.lon}&current=temperature_2m,weather_code`
     )
     const cur = data && data.current
-    if (!cur) return this.set({ ...this.state, available: false })
+    if (!cur) {
+      this.scheduleRetry()
+      // Keep the last good reading on screen rather than blanking it out over
+      // one failed poll.
+      if (this.state.available) return
+      return this.set({ ...this.state, available: false })
+    }
     const [text, icon] = CODES[cur.weather_code] || ['—', '·']
     this.set({
       available: true,
@@ -76,7 +108,9 @@ class Weather extends EventEmitter {
 
   stop() {
     if (this.timer) clearInterval(this.timer)
+    if (this.retry) clearTimeout(this.retry)
     this.timer = null
+    this.retry = null
   }
 }
 

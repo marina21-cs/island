@@ -1,11 +1,14 @@
 const fs = require('fs')
 const { EventEmitter } = require('events')
+const apps = require('./apps')
 
 const PATH = '/org/mpris/MediaPlayer2'
 const PLAYER = 'org.mpris.MediaPlayer2.Player'
 const PROPS = 'org.freedesktop.DBus.Properties'
+const ROOT = 'org.mpris.MediaPlayer2'
 const PREFIX = 'org.mpris.MediaPlayer2.'
-const MAX_ART_BYTES = 2 * 1024 * 1024
+const MAX_ART_BYTES = 6 * 1024 * 1024
+const ART_TIMEOUT_MS = 6000
 
 const EMPTY = {
   available: false,
@@ -15,6 +18,9 @@ const EMPTY = {
   artist: '',
   album: '',
   art: null,
+  source: '',
+  sourceName: '',
+  sourceIcon: null,
   lengthMs: 0,
   positionMs: 0,
   canNext: false,
@@ -34,10 +40,20 @@ const str = (v) => {
   return typeof u === 'string' ? u : ''
 }
 
-function resolveArt(url) {
-  if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  if (!url.startsWith('file://')) return null
+// Cover art has to arrive as a data URL. Spotify and every browser hand out
+// https URLs, and the renderer's CSP does not allow remote images — nor should
+// it, since that would let whatever is playing decide what the panel fetches.
+// Main does the fetching instead, so the renderer only ever sees data:.
+const artCache = new Map()
+const ART_CACHE_MAX = 24
+
+function cacheArt(url, value) {
+  if (artCache.size >= ART_CACHE_MAX) artCache.delete(artCache.keys().next().value)
+  artCache.set(url, value)
+  return value
+}
+
+function readLocalArt(url) {
   try {
     const file = decodeURIComponent(url.slice('file://'.length))
     const stat = fs.statSync(file)
@@ -48,6 +64,40 @@ function resolveArt(url) {
   } catch {
     return null
   }
+}
+
+async function fetchArt(url) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ART_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, redirect: 'follow' })
+    if (!res.ok) return null
+    const type = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim()
+    if (!type.startsWith('image/')) return null
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (!buf.length || buf.length > MAX_ART_BYTES) return null
+    return `data:${type};base64,${buf.toString('base64')}`
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function resolveArt(url) {
+  if (!url) return null
+  if (artCache.has(url)) return artCache.get(url)
+  if (url.startsWith('file://')) return cacheArt(url, readLocalArt(url))
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return cacheArt(url, await fetchArt(url))
+  }
+  return null
+}
+
+// Browsers register as org.mpris.MediaPlayer2.firefox.instance_1_7; the bus
+// name is the only hint when a player omits DesktopEntry.
+function sourceFromBusName(name) {
+  return name.slice(PREFIX.length).split('.')[0].replace(/^instance\d+$/, '')
 }
 
 class Mpris extends EventEmitter {
@@ -105,6 +155,21 @@ class Mpris extends EventEmitter {
       const entry = { player, props, state: { ...EMPTY, available: true, player: name } }
       this.players.set(name, entry)
 
+      // The root interface names the owning app. DesktopEntry is the reliable
+      // handle; the bus name is the fallback for players that omit it.
+      try {
+        const root = await props.GetAll(ROOT)
+        const source = str(root.DesktopEntry) || sourceFromBusName(name)
+        entry.state.source = source
+        entry.state.sourceName = str(root.Identity) || source
+        entry.state.sourceIcon = apps.iconDataUrlFor(source)
+      } catch {
+        const source = sourceFromBusName(name)
+        entry.state.source = source
+        entry.state.sourceName = source
+        entry.state.sourceIcon = apps.iconDataUrlFor(source)
+      }
+
       props.on('PropertiesChanged', (iface, changed) => {
         if (iface !== PLAYER) return
         this.applyProps(entry, changed)
@@ -144,7 +209,16 @@ class Mpris extends EventEmitter {
       const url = str(m['mpris:artUrl'])
       if (url !== s.artUrl) {
         s.artUrl = url
-        s.art = resolveArt(url)
+        s.art = null
+        if (url) {
+          // Remote art arrives late; apply it only if the track has not
+          // changed underneath us in the meantime.
+          resolveArt(url).then((data) => {
+            if (s.artUrl !== url || !data) return
+            s.art = data
+            this.emitState()
+          })
+        }
       }
     }
   }

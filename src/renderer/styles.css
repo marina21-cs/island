@@ -9,8 +9,8 @@
   --e: cubic-bezier(0.32, 0.72, 0, 1);
   --e-pop: cubic-bezier(0.34, 1.28, 0.44, 1);
 
-  --bg: #0a0a0c;
-  --bg-2: #141418;
+  --bg: #131317;
+  --bg-2: #1e1e24;
   --ink: #ffffff;
   --ink-2: #8b8b93;
   --ink-3: #5b5b64;
@@ -24,9 +24,9 @@
   --amber: #f59e0b;
 
   /* Driven from JS: the notch's current size and corner radius. */
-  --w: 260px;
-  --h: 28px;
-  --r: 14px;
+  --w: 196px;
+  --h: 36px;
+  --r: 18px;
 }
 
 * {
@@ -72,108 +72,25 @@ svg {
   stroke-linejoin: round;
 }
 
-/* --- stat chips ---------------------------------------------------------- */
-
-#chips {
-  position: absolute;
-  top: 0;
-  left: 28px;
-  display: flex;
-  gap: 5px;
-  background: transparent;
-  box-shadow: none;
-}
-
-.chip {
-  width: 48px;
-  height: 30px;
-  border: 0;
-  border-radius: 0 0 12px 12px;
-  background: var(--bg);
-  color: var(--ink);
-  font: inherit;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  cursor: pointer;
-  transition: background 0.2s var(--e);
-}
-
-.chip:hover {
-  background: var(--bg-2);
-}
-
-.chip b {
-  font-size: 7.5px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  color: var(--ink-3);
-}
-
-.chip span {
-  font-size: 10.5px;
-  font-weight: 650;
-  line-height: 1;
-}
-
-.chip.warn span {
-  color: var(--amber);
-}
-.chip.crit span {
-  color: var(--red);
-}
-
-.chip.rec {
-  width: 44px;
-  flex-direction: row;
-  gap: 4px;
-}
-
-.recdot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #3a3a42;
-  flex: none;
-  transition: background 0.2s var(--e);
-}
-
-.rectime {
-  font-size: 8.5px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
-}
-
-#chipRec.on .recdot {
-  background: var(--red);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
-  animation: blink 1.4s ease-in-out infinite;
-}
-
-#chipRec.on .rectime {
-  color: var(--red);
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
 /* --- the notch ----------------------------------------------------------- */
 
 #notch {
   position: absolute;
   top: 0;
   left: 50%;
-  background: var(--bg);
+  /* Not flat black: a shallow top-to-bottom fall gives the slab some depth
+     against a bright desktop, which is most of what reads as "solid object"
+     rather than "rectangle drawn on the screen". */
+  background: linear-gradient(180deg, #17171c 0%, #0e0e12 62%, #0c0c0f 100%);
   margin-left: calc(var(--w) / -2);
   width: var(--w);
   height: var(--h);
   border-radius: 0 0 var(--r) var(--r);
   overflow: hidden;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.045),
+    inset 1px 0 0 rgba(255, 255, 255, 0.03),
+    inset -1px 0 0 rgba(255, 255, 255, 0.03);
   transition:
     width 0.5s var(--e),
     height 0.5s var(--e-pop),
@@ -210,22 +127,58 @@ svg {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
   height: 100%;
-  padding: 0 14px;
+  padding: 0 13px;
+}
+
+/* The orb is what makes the pill feel alive rather than parked. It carries
+   the cover art while something is playing, and spins a slow gradient ring
+   when nothing is. */
+.orb {
+  position: relative;
+  flex: none;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  animation: breathe 4.5s ease-in-out infinite;
+}
+
+.orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #5b8cff, #a855f7, #22d3ee, #34d399, #5b8cff);
+  animation: spin 7s linear infinite;
+  opacity: 0.95;
+}
+
+.orb-art {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: #0d0d11 center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+  transition: inset 0.3s var(--e);
+}
+
+/* With no art the centre stays dark, so the ring reads as a thin halo. */
+.orb.playing { animation-duration: 2.6s; }
+.orb.playing .orb-ring { animation-duration: 3.4s; opacity: 1; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 .clock {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-}
-
-.dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--ink-3);
-  flex: none;
+  letter-spacing: -0.01em;
 }
 
 .idlemeta {
@@ -235,6 +188,27 @@ svg {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.idlemeta:empty { display: none; }
+
+.recdot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+  animation: blink 1.4s ease-in-out infinite;
+  display: none;
+}
+
+.recdot.on { display: block; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 /* --- ambient ------------------------------------------------------------- */
@@ -632,26 +606,76 @@ svg {
 
 .hm-grid {
   display: grid;
+  /* The media block is the one that can give: its title ellipsizes. The
+     calendar's day cells are fixed width, so handing it the flexible column
+     clipped the seventh day. */
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 15px;
+  gap: 14px;
   align-items: center;
   height: 100%;
 }
 
-.hm-media { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hm-media { display: flex; align-items: center; gap: 13px; min-width: 0; }
+
+.hm-artwrap { position: relative; flex: none; width: 74px; height: 74px; }
+
+.hm-art {
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+  background: #1a1a20 center / cover no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 20px rgba(0, 0, 0, 0.55);
+}
+
+.hm-art.empty { background-image: none; }
+
+.hm-art.empty::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.07), transparent 62%);
+}
+
+/* The source badge: which app is playing this, tucked into the artwork's
+   corner the way a now-playing card does it. */
+.hm-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #1c1c23;
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transform: scale(0.5);
+  opacity: 0;
+  transition: transform 0.42s var(--e-pop), opacity 0.28s var(--e);
+}
+
+.hm-badge.on { transform: scale(1); opacity: 1; }
+.hm-badge img { width: 16px; height: 16px; object-fit: contain; display: block; }
 
 .hm-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 
 .hm-title {
-  font-size: 12.5px;
-  font-weight: 620;
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.hm-album,
 .hm-artist {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -659,47 +683,69 @@ svg {
   margin-top: 1px;
 }
 
-.hm-bar {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--fill);
-  overflow: hidden;
-  margin: 6px 0 2px;
-}
+.hm-artist { font-size: 10.5px; color: var(--ink-3); }
 
-.hm-bar i {
-  display: block;
-  height: 100%;
-  width: 0;
-  border-radius: 2px;
-  background: #f2f2f4;
-  transition: width 0.9s linear;
-}
+.hm-ctl { display: flex; align-items: center; gap: 1px; margin: 6px 0 0 -6px; }
+.hm-ctl .iconbtn { width: 25px; height: 25px; }
+.hm-time { margin-left: 7px; white-space: nowrap; font-size: 10px; color: var(--ink-3); }
 
-.hm-ctl { display: flex; align-items: center; gap: 0; margin-left: -5px; }
-.hm-ctl .iconbtn { width: 24px; height: 24px; }
-.hm-play { background: var(--fill); width: 27px !important; height: 27px !important; }
-.hm-time { margin-left: 7px; white-space: nowrap; }
+.hm-sep { width: 1px; height: 62px; background: var(--line); }
 
-.hm-cal { display: flex; flex-direction: column; gap: 4px; }
+.hm-cal { display: flex; flex-direction: column; gap: 6px; }
+
+.hm-caltop { display: flex; align-items: baseline; gap: 9px; }
 
 .hm-month {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
-.hm-week { display: flex; gap: 4px; }
+.hm-week { display: flex; gap: 3px; align-items: flex-end; }
 
-.hm-day { display: flex; flex-direction: column; align-items: center; gap: 1px; width: 16px; }
-.hm-dow { font-size: 7.5px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.04em; }
-.hm-date { font-size: 11px; font-weight: 600; color: var(--ink-2); line-height: 1.1; }
-.hm-day.weekend .hm-date { color: var(--red); }
-.hm-day.today .hm-date { color: var(--ink); font-weight: 750; }
-.hm-day.today .hm-dow { color: var(--ink-2); }
+.hm-day { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 22px; }
+.hm-dow {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.hm-day.today .hm-dow { color: var(--blue); }
 
-.hm-weather { color: var(--ink-2); white-space: nowrap; }
+.hm-datebox {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: background 0.3s var(--e), color 0.3s var(--e);
+}
+
+.hm-day.weekend .hm-datebox { color: rgba(255, 255, 255, 0.34); }
+
+.hm-day.today .hm-datebox {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(47, 111, 235, 0.45);
+}
+
+.hm-event {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding-top: 1px;
+}
+
+.hm-event svg { width: 12px; height: 12px; flex: none; }
 
 .hm-actions { display: flex; gap: 9px; }
 .hm-action { display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -1238,3 +1284,77 @@ svg {
 .bg-btn:hover { filter: brightness(1.3); }
 .bg-btn.minus { background: rgba(239, 68, 68, 0.2); color: var(--red); }
 .bg-btn.plus { background: rgba(29, 185, 84, 0.2); color: var(--green); }
+
+.hm-calwrap { display: flex; align-items: center; gap: 14px; }
+
+/* --- Stats --------------------------------------------------------------- */
+
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  height: calc(100% - 44px);
+}
+
+.st-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  min-width: 0;
+  justify-content: center;
+}
+
+.st-value {
+  font-size: 21px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.st-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.st-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--ink-2);
+  transition: width 0.6s var(--e), background 0.4s var(--e);
+}
+
+.st-sub {
+  font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-card.good .st-bar i { background: var(--green); }
+.st-card.warn .st-bar i { background: var(--amber); }
+.st-card.crit .st-bar i { background: var(--red); }
+.st-card.crit .st-value { color: var(--red); }
+
+.st-net {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  margin-top: 8px;
+  padding: 0 11px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.st-netcell { display: flex; align-items: center; gap: 5px; color: var(--ink-2); }
+.st-netcell svg { width: 12px; height: 12px; }
+.st-netval { font-size: 11.5px; font-weight: 600; color: var(--ink); white-space: nowrap; }

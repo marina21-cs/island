@@ -11,24 +11,14 @@
   </head>
   <body>
     <div id="stage">
-      <!-- Stat chips, left of the notch. Each surface is shaped separately, so
-           the gaps between them stay click-through. -->
-      <div id="chips">
-        <button class="chip surface" data-k="cpu"><b>CPU</b><span>—</span></button>
-        <button class="chip surface" data-k="ram"><b>RAM</b><span>—</span></button>
-        <button class="chip surface" data-k="gpu"><b>GPU</b><span>—</span></button>
-        <button class="chip rec surface" id="chipRec" title="Start recording">
-          <span class="recdot"></span><span class="rectime">REC</span>
-        </button>
-      </div>
-
       <div id="notch" class="surface" data-state="idle" data-tab="home">
         <div class="layer" data-layer="idle">
           <div class="idlerow">
+            <span class="orb" id="orb"><i class="orb-art" id="orbArt"></i><i class="orb-ring"></i></span>
             <span class="clock" id="clock">--:--</span>
-            <span class="dot"></span>
-            <span class="idlemeta" id="idleMeta">—</span>
+            <span class="idlemeta" id="idleMeta"></span>
             <span class="wave" id="idleWave"><i></i><i></i><i></i><i></i></span>
+            <span class="recdot" id="idleRec"></span>
           </div>
         </div>
 
@@ -76,6 +66,7 @@
     <script src="core.js"></script>
     <script src="tabs/home.js"></script>
     <script src="tabs/tray.js"></script>
+    <script src="tabs/stats.js"></script>
     <script src="tabs/alerts.js"></script>
     <script src="tabs/board.js"></script>
     <script src="tabs/tools.js"></script>

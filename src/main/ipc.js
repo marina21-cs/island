@@ -147,7 +147,7 @@ function startServices(cfg) {
   S.audio.start()
   S.mpris.start()
   S.notifs.start()
-  S.weather.start(cfg.weatherCity)
+  S.weather.start(cfg.weatherCity, undefined, cfg.weatherLat, cfg.weatherLon)
 }
 
 function stopServices() {

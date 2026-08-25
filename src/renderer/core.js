@@ -51,15 +51,19 @@ function ago(ts) {
   return `${Math.floor(s / 86400)}d`
 }
 
+// MacBook-notch proportions: short across, chunky down.
 const SIZES = {
-  idle: { w: 260, h: 28, r: 14 },
-  ambient: { w: 380, h: 34, r: 16 },
+  idle: { w: 196, h: 36, r: 18 },
+  ambient: { w: 348, h: 40, r: 20 },
 }
+
+// Hover is a size modifier, not a mode — the collapsed pill grows a little
+// under the pointer to say it is reachable, without changing what it shows.
+const HOVER_BUMP = { w: 30, h: 8, r: 3 }
 
 const el = {
   root: document.documentElement,
   notch: $('notch'),
-  chips: $('chips'),
   volume: $('volume'),
   nav: $('nav'),
   tabsBar: $('tabs'),
@@ -73,6 +77,7 @@ const state = {
   mode: null,
   tab: 'home',
   pinned: false,
+  hovering: false,
   cfg: { collapseDelayMs: 700, hoverDelayMs: 220 },
   feeds: {},
   toast: null,
@@ -125,11 +130,37 @@ function pump(ms = 620) {
 
 /* --- sizing and mode ----------------------------------------------------- */
 
+// The nav has to fit whatever tabs are registered. A tab that asks for less
+// width than the nav needs would clip it — measured once the tabs exist rather
+// than assumed, so adding a tab later cannot silently break the row.
+let navFloor = 0
+
+function measureNav() {
+  requestAnimationFrame(() => {
+    const tabsW = el.tabsBar.scrollWidth
+    const buttons = [...el.nav.querySelectorAll('.navbtn')]
+      .reduce((sum, b) => sum + b.offsetWidth + 3, 0)
+    // nav padding, plus room so the last tab is not shoulder to shoulder with
+    // the buttons.
+    const padding = 10 + 8 + 20
+    const next = Math.ceil(tabsW + buttons + padding)
+    if (next === navFloor || !tabsW) return
+    navFloor = next
+    if (state.mode === 'expanded') applySize()
+  })
+}
+
 function applySize() {
   let size = SIZES[state.mode] || SIZES.idle
   if (state.mode === 'expanded') {
     const tab = tabs.get(state.tab)
-    size = { w: (tab && tab.width) || 470, h: (tab && tab.height) || 200, r: 26 }
+    size = {
+      w: Math.max((tab && tab.width) || 470, navFloor),
+      h: (tab && tab.height) || 200,
+      r: 26,
+    }
+  } else if (state.hovering) {
+    size = { w: size.w + HOVER_BUMP.w, h: size.h + HOVER_BUMP.h, r: size.r + HOVER_BUMP.r }
   }
   el.root.style.setProperty('--w', `${size.w}px`)
   el.root.style.setProperty('--h', `${size.h}px`)
@@ -149,6 +180,10 @@ const baseMode = () => (ambientAvailable() ? 'ambient' : 'idle')
 function setMode(mode) {
   if (state.mode === mode) return
   state.mode = mode
+  if (mode === 'expanded') {
+    state.hovering = false
+    delete el.notch.dataset.hover
+  }
   el.notch.dataset.state = mode
   for (const layer of el.layers) layer.classList.toggle('on', layer.dataset.layer === mode)
   el.volume.classList.toggle('off', mode !== 'expanded')
@@ -170,13 +205,22 @@ let collapseTimer = null
 function onHover() {
   clearTimeout(collapseTimer)
   if (state.mode === 'expanded') return
+  // Grow a touch straight away — the acknowledgement should not wait out the
+  // dwell, or the pill feels dead until it suddenly opens.
+  state.hovering = true
+  el.notch.dataset.hover = 'on'
+  applySize()
   clearTimeout(hoverTimer)
-  // Dwell first: the top of the screen sees a lot of incidental mouse travel.
+  // Dwell before opening: the top of the screen sees a lot of incidental
+  // mouse travel.
   hoverTimer = setTimeout(() => setMode('expanded'), state.cfg.hoverDelayMs)
 }
 
 function onLeave() {
   clearTimeout(hoverTimer)
+  state.hovering = false
+  delete el.notch.dataset.hover
+  if (state.mode !== 'expanded') applySize()
   if (state.mode !== 'expanded' || state.pinned) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {
@@ -224,6 +268,7 @@ function buildTabs() {
     if (def.mount) def.mount(pane)
   }
   applyTabClasses()
+  measureNav()
 }
 
 function applyTabClasses() {
@@ -386,6 +431,7 @@ window.Island = {
   ago,
   registerTab,
   buildTabs,
+  measureNav,
   setTab,
   setBadge,
   setMode,
