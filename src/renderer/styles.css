@@ -132,47 +132,35 @@ svg {
   padding: 0 13px;
 }
 
-/* The orb is what makes the pill feel alive rather than parked. It carries
-   the cover art while something is playing, and spins a slow gradient ring
-   when nothing is. */
+/* The idle icon. Pixel art, so it is rendered without smoothing and sized to
+   a whole number of source pixels; anything else turns it to mush. It bobs
+   gently rather than sitting still — the pill should look awake. */
 .orb {
   position: relative;
   flex: none;
-  width: 21px;
-  height: 21px;
-  border-radius: 50%;
-  animation: breathe 4.5s ease-in-out infinite;
-}
-
-.orb-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, #5b8cff, #a855f7, #22d3ee, #34d399, #5b8cff);
-  animation: spin 7s linear infinite;
-  opacity: 0.95;
+  width: 26px;
+  height: 26px;
+  animation: bob 3.6s ease-in-out infinite;
 }
 
 .orb-art {
   position: absolute;
-  inset: 2px;
-  border-radius: 50%;
-  background: #0d0d11 center / cover no-repeat;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
-  transition: inset 0.3s var(--e);
+  inset: 0;
+  background: url("data:image/png;base64,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") center / contain no-repeat;
+  image-rendering: pixelated;
 }
 
-/* With no art the centre stays dark, so the ring reads as a thin halo. */
-.orb.playing { animation-duration: 2.6s; }
-.orb.playing .orb-ring { animation-duration: 3.4s; opacity: 1; }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* While something plays the icon gives way to the cover art. */
+.orb.playing .orb-art {
+  border-radius: 7px;
+  image-rendering: auto;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-@keyframes breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-1.5px) rotate(-3deg); }
+  70% { transform: translateY(0.5px) rotate(3deg); }
 }
 
 .clock {
@@ -340,8 +328,8 @@ svg {
   display: flex;
   align-items: center;
   gap: 3px;
-  height: 34px;
-  padding: 0 8px 0 10px;
+  height: 40px;
+  padding: 0 10px 0 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -359,14 +347,14 @@ svg {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 22px;
-  padding: 0 8px;
+  height: 27px;
+  padding: 0 11px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink-2);
   font: inherit;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
@@ -375,7 +363,7 @@ svg {
 
 .tab:hover { color: var(--ink); background: var(--fill); }
 .tab.on { color: var(--ink); background: var(--fill-2); }
-.tab svg { width: 12px; height: 12px; flex: none; }
+.tab svg { width: 14px; height: 14px; flex: none; }
 
 .tab .badge {
   min-width: 14px;
@@ -394,8 +382,8 @@ svg {
 .tab.has-badge .badge { display: grid; }
 
 .navbtn {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border: 0;
@@ -413,13 +401,13 @@ svg {
 
 #panes {
   position: relative;
-  height: calc(100% - 34px);
+  height: calc(100% - 40px);
 }
 
 .pane {
   position: absolute;
   inset: 0;
-  padding: 11px 13px 12px;
+  padding: 13px 16px 14px;
   opacity: 0;
   transform: translateY(5px);
   pointer-events: none;
@@ -1358,3 +1346,98 @@ svg {
 .st-netcell { display: flex; align-items: center; gap: 5px; color: var(--ink-2); }
 .st-netcell svg { width: 12px; height: 12px; }
 .st-netval { font-size: 11.5px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+
+/* --- live activity ------------------------------------------------------- */
+/* Shown for a few seconds when playback starts, then it steps back to the
+   collapsed pill. The glow behind takes its colour from the cover, which is
+   what stops the card reading as a generic dark rectangle. */
+
+.la-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(125% 150% at 15% 45%, var(--glow, transparent), transparent 62%);
+  opacity: 0.6;
+  pointer-events: none;
+  transition: background 0.5s var(--e);
+}
+
+.la-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  height: 100%;
+  padding: 0 15px;
+}
+
+.la-art {
+  flex: none;
+  width: 58px;
+  height: 58px;
+  border-radius: 13px;
+  background: #1a1a20 center / cover no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+.la-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+.la-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.la-sub {
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.la-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  margin-top: 7px;
+}
+
+.la-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: #fff;
+  transition: width 0.9s linear;
+}
+
+.la-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+.la-side { flex: none; display: flex; flex-direction: column; align-items: center; gap: 9px; }
+
+.la-badge {
+  width: 27px;
+  height: 27px;
+  border-radius: 9px;
+  background: #1c1c23;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.11);
+}
+
+.la-badge img { width: 16px; height: 16px; object-fit: contain; display: block; }
+.la-badge.off { display: none; }
+.la-wave { height: 14px; }

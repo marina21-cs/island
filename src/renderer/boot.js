@@ -59,6 +59,10 @@
 
   /* --- feed handling ----------------------------------------------------- */
 
+  // Announce a track once. Keyed on player+title so a pause/resume or a
+  // position tick does not re-trigger the card.
+  let lastTrack = ''
+
   I.onFeed((kind, data) => {
     if (kind === 'media') {
       const has = !!(data && data.available && data.title)
@@ -84,6 +88,33 @@
         }
         requestAnimationFrame(setMarquee)
       }
+      if (has) {
+        $('laArt').style.backgroundImage = data.art ? `url("${data.art}")` : ''
+        $('laTitle').textContent = data.title
+        $('laSub').textContent =
+          [data.artist, data.album].filter(Boolean).join(' · ') || data.sourceName || ''
+        const pct = data.lengthMs > 0 ? Math.min(100, (data.positionMs / data.lengthMs) * 100) : 0
+        $('laFill').style.width = `${pct}%`
+        $('laElapsed').textContent = I.clockText(data.positionMs)
+        $('laRemain').textContent =
+          data.lengthMs > 0 ? `-${I.clockText(Math.max(0, data.lengthMs - data.positionMs))}` : ''
+        // The glow takes the cover's own colour, falling back to a cool
+        // neutral when the art has none to give.
+        $('laGlow').style.setProperty(
+          '--glow',
+          data.artColour ? `rgba(${data.artColour.join(',')}, 0.45)` : 'rgba(88, 108, 158, 0.3)'
+        )
+        $('laBadge').classList.toggle('off', !data.sourceIcon)
+        if (data.sourceIcon) $('laBadgeImg').src = data.sourceIcon
+      }
+
+      const track = has ? `${data.player}|${data.title}` : ''
+      if (has && playing && track !== lastTrack) {
+        lastTrack = track
+        I.showActivity()
+      }
+      if (!has) lastTrack = ''
+
       I.updateAmbient()
       I.settle()
     }
@@ -108,6 +139,33 @@
     }
 
     if (kind === 'timers') {
+      if (has) {
+        $('laArt').style.backgroundImage = data.art ? `url("${data.art}")` : ''
+        $('laTitle').textContent = data.title
+        $('laSub').textContent =
+          [data.artist, data.album].filter(Boolean).join(' · ') || data.sourceName || ''
+        const pct = data.lengthMs > 0 ? Math.min(100, (data.positionMs / data.lengthMs) * 100) : 0
+        $('laFill').style.width = `${pct}%`
+        $('laElapsed').textContent = I.clockText(data.positionMs)
+        $('laRemain').textContent =
+          data.lengthMs > 0 ? `-${I.clockText(Math.max(0, data.lengthMs - data.positionMs))}` : ''
+        // The glow takes the cover's own colour, falling back to a cool
+        // neutral when the art has none to give.
+        $('laGlow').style.setProperty(
+          '--glow',
+          data.artColour ? `rgba(${data.artColour.join(',')}, 0.45)` : 'rgba(88, 108, 158, 0.3)'
+        )
+        $('laBadge').classList.toggle('off', !data.sourceIcon)
+        if (data.sourceIcon) $('laBadgeImg').src = data.sourceIcon
+      }
+
+      const track = has ? `${data.player}|${data.title}` : ''
+      if (has && playing && track !== lastTrack) {
+        lastTrack = track
+        I.showActivity()
+      }
+      if (!has) lastTrack = ''
+
       I.updateAmbient()
       I.settle()
     }

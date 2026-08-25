@@ -55,6 +55,7 @@ function ago(ts) {
 const SIZES = {
   idle: { w: 196, h: 36, r: 18 },
   ambient: { w: 348, h: 40, r: 20 },
+  activity: { w: 428, h: 106, r: 26 },
 }
 
 // Hover is a size modifier, not a mode — the collapsed pill grows a little
@@ -78,6 +79,7 @@ const state = {
   tab: 'home',
   pinned: false,
   hovering: false,
+  activity: false,
   cfg: { collapseDelayMs: 700, hoverDelayMs: 220 },
   feeds: {},
   toast: null,
@@ -175,7 +177,23 @@ function ambientAvailable() {
   return (state.feeds.timers || []).length > 0
 }
 
-const baseMode = () => (ambientAvailable() ? 'ambient' : 'idle')
+function baseMode() {
+  if (state.activity) return 'activity'
+  return ambientAvailable() ? 'ambient' : 'idle'
+}
+
+// A new track announces itself with the full card, then gets out of the way.
+let activityTimer = null
+
+function showActivity(ms = 5200) {
+  state.activity = true
+  clearTimeout(activityTimer)
+  if (!state.pinned && state.mode !== 'expanded') setMode('activity')
+  activityTimer = setTimeout(() => {
+    state.activity = false
+    settle()
+  }, ms)
+}
 
 function setMode(mode) {
   if (state.mode === mode) return
@@ -443,6 +461,7 @@ window.Island = {
   dispatch,
   onFeed,
   toast,
+  showActivity,
   segmented,
   updateAmbient,
   baseMode,

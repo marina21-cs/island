@@ -145,7 +145,7 @@
       ui.grid.style.height = prev
       if (!content) return
       const def = I.tabs.get('tray')
-      const chrome = 34 + 11 + 6 + 26 + 12 // nav + pane padding + search bar
+      const chrome = 40 + 13 + 6 + 26 + 14 // nav + pane padding + search bar
       const next = chrome + content
       if (def.height === next) return
       def.height = next
@@ -174,7 +174,7 @@
     icon: svg(
       '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>'
     ),
-    width: 560,
+    width: 604,
     height: 196,
     mount,
     ready: load,

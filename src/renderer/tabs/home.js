@@ -195,8 +195,8 @@
     id: 'home',
     label: 'Home',
     icon: svg('<path d="M4 10.5 12 4l8 6.5V20H4z"/>'),
-    width: 648,
-    height: 158,
+    width: 700,
+    height: 182,
     mount,
     update,
   })

@@ -14,7 +14,7 @@
       <div id="notch" class="surface" data-state="idle" data-tab="home">
         <div class="layer" data-layer="idle">
           <div class="idlerow">
-            <span class="orb" id="orb"><i class="orb-art" id="orbArt"></i><i class="orb-ring"></i></span>
+            <span class="orb" id="orb"><i class="orb-art" id="orbArt"></i></span>
             <span class="clock" id="clock">--:--</span>
             <span class="idlemeta" id="idleMeta"></span>
             <span class="wave" id="idleWave"><i></i><i></i><i></i><i></i></span>
@@ -36,6 +36,26 @@
           <div class="ambrow" id="ambToast">
             <span class="toastIcon" id="toastIcon">·</span>
             <span class="tlabel" id="toastText"></span>
+          </div>
+        </div>
+
+        <div class="layer" data-layer="activity">
+          <div class="la-glow" id="laGlow"></div>
+          <div class="la-row">
+            <span class="la-art" id="laArt"></span>
+            <span class="la-meta">
+              <span class="la-title" id="laTitle"></span>
+              <span class="la-sub" id="laSub"></span>
+              <span class="la-bar"><i id="laFill"></i></span>
+              <span class="la-times">
+                <span id="laElapsed">0:00</span>
+                <span id="laRemain"></span>
+              </span>
+            </span>
+            <span class="la-side">
+              <span class="la-badge" id="laBadge"><img id="laBadgeImg" alt="" /></span>
+              <span class="wave playing la-wave"><i></i><i></i><i></i><i></i></span>
+            </span>
           </div>
         </div>
 

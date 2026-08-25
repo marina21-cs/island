@@ -118,8 +118,21 @@ cmd_uninstall() {
   say "user data left alone at $DATA_DIR (delete it yourself if you want it gone)"
 }
 
-# Called by the XDG autostart entry, once per graphical login.
+# Called by the XDG autostart entry, once per graphical login. It runs inside
+# the graphical session, so its own environment is the authoritative one.
+write_session_env() {
+  mkdir -p "$DATA_DIR"
+  {
+    [ -n "${DISPLAY:-}" ] && printf 'DISPLAY=%s\n' "$DISPLAY"
+    [ -n "${XAUTHORITY:-}" ] && printf 'XAUTHORITY=%s\n' "$XAUTHORITY"
+    [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && printf 'DBUS_SESSION_BUS_ADDRESS=%s\n' "$DBUS_SESSION_BUS_ADDRESS"
+    [ -n "${XDG_CURRENT_DESKTOP:-}" ] && printf 'XDG_CURRENT_DESKTOP=%s\n' "$XDG_CURRENT_DESKTOP"
+    [ -n "${XDG_RUNTIME_DIR:-}" ] && printf 'XDG_RUNTIME_DIR=%s\n' "$XDG_RUNTIME_DIR"
+  } > "$DATA_DIR/session.env"
+}
+
 cmd_autostart() {
+  write_session_env
   # XAUTHORITY is a fresh /tmp path every session and the user manager
   # survives logout (lingering), so a stale value would point at a dead
   # cookie. Re-import before (re)starting.
@@ -157,6 +170,11 @@ cmd_status() {
   say "app         $APP_DIR"
   say "exec        $(systemctl --user show -p ExecStart --value "${APP}.service" 2>/dev/null | sed -n 's/.*path=\([^ ;]*\).*/\1/p')"
   say "data        $DATA_DIR"
+  if [ -f "$DATA_DIR/session.env" ]; then
+    say "bus         $(sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p' "$DATA_DIR/session.env" | head -1)"
+  else
+    printf '  bus         %sno session.env — run `island autostart`%s\n' "$c_bad" "$c_0"
+  fi
 
   if [ -f "$AUTOSTART" ]; then
     printf '  autostart   %son%s  (%s)\n' "$c_ok" "$c_0" "$AUTOSTART"

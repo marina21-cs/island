@@ -20,6 +20,18 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
+# Written by `island autostart` at each graphical login. It carries the
+# session's DISPLAY, XAUTHORITY and — critically — DBUS_SESSION_BUS_ADDRESS.
+#
+# startplasma-x11 spawns its own dbus-daemon rather than using the systemd
+# user bus, so the desktop's apps sit on /tmp/dbus-XXXX while the user manager
+# hands services /run/user/1000/bus. Those are different buses: without this
+# file the panel listens on one nobody plays music or posts notifications on,
+# and MPRIS and notifications are both silently dead.
+#
+# Per-unit rather than a global `systemctl --user set-environment`, which would
+# hand the session bus to every other user service too.
+EnvironmentFile=-%h/.config/island/session.env
 WorkingDirectory=@APP_DIR@
 ExecStart=@ELECTRON@ @APP_DIR@
 

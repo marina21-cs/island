@@ -1,5 +1,6 @@
 const fs = require('fs')
 const { EventEmitter } = require('events')
+const { nativeImage } = require('electron')
 const apps = require('./apps')
 
 const PATH = '/org/mpris/MediaPlayer2'
@@ -18,6 +19,7 @@ const EMPTY = {
   artist: '',
   album: '',
   art: null,
+  artColour: null,
   source: '',
   sourceName: '',
   sourceIcon: null,
@@ -53,6 +55,36 @@ function cacheArt(url, value) {
   return value
 }
 
+// An average colour for the cover, used to tint the glow behind the
+// now-playing card. Near-black and near-white pixels are skipped: letterboxing
+// and white sleeves would otherwise average every cover to the same grey.
+function coverColour(buf) {
+  try {
+    const img = nativeImage.createFromBuffer(buf)
+    if (img.isEmpty()) return null
+    const bmp = img.resize({ width: 16, height: 16, quality: 'good' }).getBitmap()
+    let r = 0
+    let g = 0
+    let b = 0
+    let n = 0
+    for (let i = 0; i < bmp.length; i += 4) {
+      const B = bmp[i]
+      const G = bmp[i + 1]
+      const R = bmp[i + 2]
+      if (bmp[i + 3] < 128) continue
+      if (Math.max(R, G, B) < 30 || Math.min(R, G, B) > 230) continue
+      r += R
+      g += G
+      b += B
+      n++
+    }
+    if (!n) return null
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)]
+  } catch {
+    return null
+  }
+}
+
 function readLocalArt(url) {
   try {
     const file = decodeURIComponent(url.slice('file://'.length))
@@ -60,7 +92,8 @@ function readLocalArt(url) {
     if (!stat.isFile() || stat.size > MAX_ART_BYTES) return null
     const ext = file.split('.').pop().toLowerCase()
     const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
-    return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`
+    const buf = fs.readFileSync(file)
+    return { data: `data:${mime};base64,${buf.toString('base64')}`, colour: coverColour(buf) }
   } catch {
     return null
   }
@@ -76,7 +109,7 @@ async function fetchArt(url) {
     if (!type.startsWith('image/')) return null
     const buf = Buffer.from(await res.arrayBuffer())
     if (!buf.length || buf.length > MAX_ART_BYTES) return null
-    return `data:${type};base64,${buf.toString('base64')}`
+    return { data: `data:${type};base64,${buf.toString('base64')}`, colour: coverColour(buf) }
   } catch {
     return null
   } finally {
@@ -93,6 +126,15 @@ async function resolveArt(url) {
   }
   return null
 }
+
+// No D-Bus call may hang the attach sequence: a player that never answers
+// would otherwise leave us holding an entry with no metadata, which reads as
+// "nothing is playing" forever.
+const withTimeout = (promise, ms) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('dbus timeout')), ms)),
+  ])
 
 // Browsers register as org.mpris.MediaPlayer2.firefox.instance_1_7; the bus
 // name is the only hint when a player omits DesktopEntry.
@@ -149,26 +191,26 @@ class Mpris extends EventEmitter {
   async attach(name) {
     if (this.players.has(name)) return
     try {
-      const obj = await this.bus.getProxyObject(name, PATH)
+      const obj = await withTimeout(this.bus.getProxyObject(name, PATH), 5000)
       const player = obj.getInterface(PLAYER)
       const props = obj.getInterface(PROPS)
-      const entry = { player, props, state: { ...EMPTY, available: true, player: name } }
-      this.players.set(name, entry)
 
-      // The root interface names the owning app. DesktopEntry is the reliable
-      // handle; the bus name is the fallback for players that omit it.
-      try {
-        const root = await props.GetAll(ROOT)
-        const source = str(root.DesktopEntry) || sourceFromBusName(name)
-        entry.state.source = source
-        entry.state.sourceName = str(root.Identity) || source
-        entry.state.sourceIcon = apps.iconDataUrlFor(source)
-      } catch {
-        const source = sourceFromBusName(name)
-        entry.state.source = source
-        entry.state.sourceName = source
-        entry.state.sourceIcon = apps.iconDataUrlFor(source)
+      // Seed identity from the bus name so the badge has something even if the
+      // root interface never answers.
+      const guess = sourceFromBusName(name)
+      const entry = {
+        player,
+        props,
+        state: {
+          ...EMPTY,
+          available: true,
+          player: name,
+          source: guess,
+          sourceName: guess,
+          sourceIcon: apps.iconDataUrlFor(guess),
+        },
       }
+      this.players.set(name, entry)
 
       props.on('PropertiesChanged', (iface, changed) => {
         if (iface !== PLAYER) return
@@ -177,10 +219,24 @@ class Mpris extends EventEmitter {
         this.emitState()
       })
 
-      const all = await props.GetAll(PLAYER)
+      // The media state is what matters, so it goes first and alone.
+      const all = await withTimeout(props.GetAll(PLAYER), 5000)
       this.applyProps(entry, all)
       this.chooseActive()
       this.emitState()
+
+      // Identity and icon are cosmetic: fetched after, never awaited, and a
+      // failure just leaves the bus-name guess in place.
+      withTimeout(props.GetAll(ROOT), 5000)
+        .then((root) => {
+          if (!this.players.has(name)) return
+          const source = str(root.DesktopEntry) || guess
+          entry.state.source = source
+          entry.state.sourceName = str(root.Identity) || source
+          entry.state.sourceIcon = apps.iconDataUrlFor(source)
+          this.emitState()
+        })
+        .catch(() => {})
     } catch {
       // Player vanished mid-handshake, or exposes a broken interface.
       this.players.delete(name)
@@ -210,12 +266,14 @@ class Mpris extends EventEmitter {
       if (url !== s.artUrl) {
         s.artUrl = url
         s.art = null
+        s.artColour = null
         if (url) {
           // Remote art arrives late; apply it only if the track has not
           // changed underneath us in the meantime.
-          resolveArt(url).then((data) => {
-            if (s.artUrl !== url || !data) return
-            s.art = data
+          resolveArt(url).then((found) => {
+            if (s.artUrl !== url || !found) return
+            s.art = found.data
+            s.artColour = found.colour
             this.emitState()
           })
         }
