@@ -1475,14 +1475,21 @@ svg {
 /* --- dormant ------------------------------------------------------------- */
 /* Same content as idle, pared back: the clock and the icon, nothing else. */
 
+/* At 15px tall there is room for the time and nothing else — the icon, the
+   battery and the equaliser would all have to be shrunk past legibility. */
 #notch[data-state="dormant"] .idlemeta,
 #notch[data-state="dormant"] .wave,
+#notch[data-state="dormant"] .orb,
 #notch[data-state="dormant"] .recdot { display: none; }
 
-#notch[data-state="dormant"] .idlerow { gap: 6px; padding: 0 9px; }
-#notch[data-state="dormant"] .orb { width: 15px; height: 15px; }
-#notch[data-state="dormant"] .orb-art { border-radius: 4px; }
-#notch[data-state="dormant"] .clock { font-size: 10.5px; opacity: 0.75; }
+#notch[data-state="dormant"] .idlerow { gap: 0; padding: 0 10px; }
+
+#notch[data-state="dormant"] .clock {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+}
 
 /* --- Weather: two columns, map on the right ------------------------------ */
 

@@ -53,9 +53,10 @@ function ago(ts) {
 
 // MacBook-notch proportions: short across, chunky down.
 const SIZES = {
-  // Left alone long enough the pill thins out, so it stops being furniture at
-  // the top of the screen. Any hover brings it straight back.
-  dormant: { w: 118, h: 24, r: 12 },
+  // Left alone long enough the pill goes to stealth: it loses almost all its
+  // height and gains length, reading as a thin strip along the top edge rather
+  // than an object sitting on the desktop. Any hover brings it straight back.
+  dormant: { w: 272, h: 15, r: 7 },
   idle: { w: 196, h: 36, r: 18 },
   ambient: { w: 348, h: 40, r: 20 },
   activity: { w: 428, h: 106, r: 26 },
@@ -283,6 +284,10 @@ function onLeave() {
   state.hovering = false
   delete el.notch.dataset.hover
   if (state.mode !== 'expanded') applySize()
+  // Re-arm here, not only in setMode: waking from stealth leaves the mode at
+  // idle, so a mode change never happens and it would go stealth exactly once
+  // per session.
+  if (state.mode === 'idle') armDormant()
   if (state.mode !== 'expanded' || state.pinned) return
   clearTimeout(collapseTimer)
   collapseTimer = setTimeout(() => {

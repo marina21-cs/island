@@ -17,10 +17,14 @@ screen, collapsed to a pill until you reach for it.
 ---
 
 Most desktop widgets ask for a slice of your screen and keep it. Island takes
-none. It sits as a small pill at the top edge, thins out further when you
-ignore it, and opens into a full panel only when the pointer arrives. Every
-pixel that isn't the panel belongs to whatever is underneath — clicks pass
-straight through.
+none. It sits as a small pill at the top edge, and opens into a full panel only
+when the pointer arrives. Every pixel that isn't the panel belongs to whatever
+is underneath — clicks pass straight through.
+
+Leave it alone and it goes to **stealth**: it drops almost all its height and
+gains length, becoming a 272×15 strip along the top edge that reads as part of
+the bezel rather than an object on the desktop. A hover brings it straight
+back. `dormantDelayMs` sets how long that takes; the default is 90 seconds.
 
 <div align="center">
 <img src="docs/shot-activity.png" alt="Now playing" width="470">
