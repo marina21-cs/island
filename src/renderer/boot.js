@@ -28,6 +28,22 @@
     }
   }
 
+  /* --- the collapsed pill's icon ------------------------------------------ */
+
+  let avatar = { custom: false, url: null, pixelArt: false }
+
+  // One place decides what the icon shows: cover art while something plays,
+  // otherwise the user's own picture, otherwise the built-in one from CSS.
+  function paintOrb() {
+    const m = state.feeds.media
+    const art = m && m.available && m.title ? m.art : null
+    const url = art || avatar.url
+    $('orbArt').style.backgroundImage = url ? `url("${url}")` : ''
+    // Pixel art needs crisp edges; a photograph needs the opposite.
+    const crisp = art ? false : avatar.custom ? avatar.pixelArt : true
+    $('orb').classList.toggle('smooth', !crisp)
+  }
+
   /* --- the gear menu ------------------------------------------------------ */
 
   // Horizontal now that the sliders live in a menu rather than a side column.
@@ -66,6 +82,24 @@
   $('mnMute').addEventListener('click', (e) => {
     e.stopPropagation()
     api.toggleMute()
+  })
+
+  const mnIconPick = $('mnIconPick')
+  const mnIconReset = $('mnIconReset')
+
+  mnIconPick.addEventListener('click', async (e) => {
+    e.stopPropagation()
+    mnIconPick.disabled = true
+    const res = await api.pickAvatar()
+    mnIconPick.disabled = false
+    if (res && res.ok) I.toast('🖼', 'Icon updated')
+    else if (res && res.error) I.toast('⚠', res.error, 4000)
+  })
+
+  mnIconReset.addEventListener('click', async (e) => {
+    e.stopPropagation()
+    await api.resetAvatar()
+    I.toast('↩', 'Icon reset')
   })
 
   const mnAutostart = $('mnAutostart')
@@ -120,10 +154,8 @@
       // No point showing a green equaliser when there is no audio at all.
       $('idleWave').classList.toggle('hidden', !has)
       $('ambWave').classList.toggle('hidden', !has)
-      // The orb wears the cover art while something plays, and falls back to
-      // its own gradient when nothing does.
-      $('orbArt').style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
       $('orb').classList.toggle('playing', !!playing)
+      paintOrb()
       // No cover for a video clip, so fall back to the app's own icon: the
       // point of the pill here is just "this app is making sound".
       const ambImage = has ? data.art || data.sourceIcon : null
@@ -199,6 +231,15 @@
 
     if (kind === 'clipboard' && data) mnClipPause.classList.toggle('on', !!data.paused)
 
+    if (kind === 'avatar' && data) {
+      avatar = data
+      $('mnIconPreview').style.backgroundImage = data.url ? `url("${data.url}")` : ''
+      $('mnIconPreview').classList.toggle('default', !data.custom)
+      $('mnIconPreview').classList.toggle('smooth', data.custom && !data.pixelArt)
+      mnIconReset.style.display = data.custom ? '' : 'none'
+      paintOrb()
+    }
+
     if (kind === 'capture' && data) {
       $('idleRec').classList.toggle('on', !!data.recording)
     }
@@ -245,6 +286,7 @@
   api.onCapture((d) => I.dispatch('capture', d))
   api.onWeather((d) => I.dispatch('weather', d))
   api.onLyrics((d) => I.dispatch('lyrics', d))
+  api.onAvatar((d) => I.dispatch('avatar', d))
 
   /* --- boot -------------------------------------------------------------- */
 
@@ -253,7 +295,7 @@
     if (snap.config.shadowPadding > 0) document.documentElement.dataset.shadow = 'on'
 
     for (const kind of [
-      'vitals', 'audio', 'brightness', 'capture', 'weather',
+      'vitals', 'audio', 'brightness', 'capture', 'weather', 'avatar',
       'timers', 'clipboard', 'notifications', 'lyrics', 'media',
     ]) {
       if (snap[kind] !== undefined) I.dispatch(kind, snap[kind])

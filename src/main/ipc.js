@@ -15,6 +15,7 @@ const S = {
   convert: require('./services/convert'),
   map: require('./services/map'),
   lyrics: require('./services/lyrics'),
+  avatar: require('./services/avatar'),
 }
 
 // Every service pushes to one channel; the renderer subscribes by name.
@@ -29,6 +30,7 @@ const FEEDS = [
   ['capture', S.capture],
   ['weather', S.weather],
   ['lyrics', S.lyrics],
+  ['avatar', S.avatar],
 ]
 
 function snapshot(cfg) {
@@ -43,6 +45,7 @@ function snapshot(cfg) {
     capture: S.capture.current(),
     weather: S.weather.current(),
     lyrics: S.lyrics.current(),
+    avatar: S.avatar.current(),
     pinned: S.store.read('pinned', null),
     config: {
       collapseDelayMs: cfg.collapseDelayMs,
@@ -164,6 +167,9 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide, autostart, onReload })
 
   // The gear menu lives inside the panel now, so the actions the native menu
   // used to own need their own channels.
+  ipcMain.handle('island:avatar-pick', () => S.avatar.pick())
+  ipcMain.handle('island:avatar-reset', () => S.avatar.reset())
+
   ipcMain.handle('island:settings', () => ({
     autostart: autostart.isEnabled(),
     clipboardPaused: S.clip.current().paused,
@@ -191,6 +197,7 @@ function startServices(cfg) {
   S.mpris.start()
   // Lyrics follow whatever mpris reports; they never poll on their own.
   S.lyrics.start(S.mpris)
+  S.avatar.start()
   S.notifs.start()
   S.weather.start(cfg.weatherCity, undefined, cfg.weatherLat, cfg.weatherLon)
 }
