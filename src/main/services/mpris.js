@@ -20,6 +20,8 @@ const EMPTY = {
   album: '',
   art: null,
   artColour: null,
+  isBrowser: false,
+  isMusic: false,
   source: '',
   sourceName: '',
   sourceIcon: null,
@@ -127,6 +129,22 @@ async function resolveArt(url) {
   return null
 }
 
+// Browsers publish a player for whatever tab is making noise, so scrolling
+// past a reel looks exactly like a track starting. They get the quiet
+// treatment: the pill says something has sound, but no card is thrown up.
+const BROWSERS = [
+  'firefox', 'zen', 'zen-browser', 'zen-twilight', 'librewolf', 'waterfox',
+  'chromium', 'google-chrome', 'chrome', 'brave-browser', 'brave',
+  'microsoft-edge', 'vivaldi', 'vivaldi-stable', 'opera', 'epiphany', 'midori',
+]
+
+function classify(s) {
+  const source = String(s.source || '').toLowerCase()
+  s.isBrowser = BROWSERS.some((b) => source === b || source.startsWith(`${b}.`) || source.startsWith(`${b}-`))
+  // Music carries an artist or an album; a video almost never does.
+  s.isMusic = !s.isBrowser && !!(s.artist || s.album)
+}
+
 // No D-Bus call may hang the attach sequence: a player that never answers
 // would otherwise leave us holding an entry with no metadata, which reads as
 // "nothing is playing" forever.
@@ -210,6 +228,7 @@ class Mpris extends EventEmitter {
           sourceIcon: apps.iconDataUrlFor(guess),
         },
       }
+      classify(entry.state)
       this.players.set(name, entry)
 
       props.on('PropertiesChanged', (iface, changed) => {
@@ -234,6 +253,7 @@ class Mpris extends EventEmitter {
           entry.state.source = source
           entry.state.sourceName = str(root.Identity) || source
           entry.state.sourceIcon = apps.iconDataUrlFor(source)
+          classify(entry.state)
           this.emitState()
         })
         .catch(() => {})
@@ -279,6 +299,7 @@ class Mpris extends EventEmitter {
         }
       }
     }
+    classify(s)
   }
 
   // Prefer whatever is actually playing; fall back to the last player we saw.

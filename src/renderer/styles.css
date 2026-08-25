@@ -1436,3 +1436,101 @@ svg {
 .la-badge img { width: 16px; height: 16px; object-fit: contain; display: block; }
 .la-badge.off { display: none; }
 .la-wave { height: 14px; }
+
+/* An app icon standing in for missing cover art wants padding, not a bleed. */
+.art.icon {
+  background-size: 68%;
+  background-color: #1c1c23;
+}
+
+/* Only the active tab spells its name out. With eight of them, labels on all
+   made the nav wider than any panel's own content wanted to be, which forced
+   every panel to the nav's width and left them half empty. */
+.tab-label {
+  display: none;
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 0.32s var(--e), opacity 0.22s var(--e);
+}
+
+.tab.on .tab-label {
+  display: inline;
+  max-width: 90px;
+  opacity: 1;
+}
+
+.tab:not(.on) { padding: 0 7px; gap: 0; }
+.tab:not(.on):hover { background: var(--fill); }
+
+/* --- Weather ------------------------------------------------------------- */
+
+.wx-head { display: flex; align-items: center; gap: 12px; }
+.wx-icon { font-size: 30px; line-height: 1; flex: none; }
+.wx-now { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wx-line { display: flex; align-items: baseline; gap: 8px; }
+.wx-temp { font-size: 27px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+.wx-text { font-size: 12px; color: var(--ink-2); }
+.wx-where { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.wx-windy {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 27px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #fff;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.16s var(--e);
+}
+
+.wx-windy:hover { background: #3c7cf5; }
+.wx-windy svg { width: 11px; height: 11px; }
+
+.wx-k { display: block; margin: 13px 0 6px; }
+
+.wx-hours { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+
+.wx-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 2px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.wx-hh { font-size: 9px; font-weight: 600; color: var(--ink-3); }
+.wx-hi { font-size: 13px; line-height: 1; }
+.wx-ht { font-size: 11px; font-weight: 600; }
+
+.wx-days { display: flex; flex-direction: column; gap: 3px; }
+
+.wx-day { display: flex; align-items: center; gap: 9px; height: 22px; padding: 0 3px; }
+.wx-dn { width: 40px; font-size: 11px; font-weight: 550; color: var(--ink-2); flex: none; }
+.wx-di { width: 16px; font-size: 12px; text-align: center; flex: none; }
+.wx-dl, .wx-dh { width: 26px; font-size: 11px; font-weight: 600; flex: none; }
+.wx-dl { color: var(--ink-3); text-align: right; }
+
+.wx-range {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  display: block;
+}
+
+.wx-range i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #4d9bf0, #f0b64d);
+}

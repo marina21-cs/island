@@ -1,4 +1,4 @@
-const { ipcMain, Menu } = require('electron')
+const { ipcMain, Menu, shell } = require('electron')
 
 const S = {
   mpris: require('./services/mpris'),
@@ -124,6 +124,15 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
   // Generic document store for the notes, board and budget panels.
   ipcMain.handle('island:store-get', (_e, key, fallback) => S.store.read(key, fallback))
   ipcMain.handle('island:store-set', (_e, key, value) => S.store.write(key, value))
+
+  // Windy's own forecast API needs an account key, so the panel shows
+  // Open-Meteo's numbers and hands the map off to Windy in the browser.
+  ipcMain.handle('island:open-windy', () => {
+    const w = S.weather.current()
+    if (!w || w.lat === undefined || w.lon === undefined) return false
+    shell.openExternal(`https://www.windy.com/?${w.lat},${w.lon},9`)
+    return true
+  })
 
   ipcMain.handle('island:convert-pick', (_e, mode) => S.convert.pick(mode))
   ipcMain.handle('island:convert-run', (_e, mode, files) => S.convert.convert(mode, files))

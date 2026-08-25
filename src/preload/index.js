@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('island', {
   clearClips: () => ipcRenderer.invoke('island:clip-clear'),
   pauseClips: (paused) => ipcRenderer.invoke('island:clip-pause', paused),
 
+  openWindy: () => ipcRenderer.invoke('island:open-windy'),
   pickForConvert: (mode) => ipcRenderer.invoke('island:convert-pick', mode),
   convert: (mode, files) => ipcRenderer.invoke('island:convert-run', mode, files),
   revealConverted: (file) => ipcRenderer.invoke('island:convert-reveal', file),

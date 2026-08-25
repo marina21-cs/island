@@ -173,7 +173,9 @@ function applySize() {
 function ambientAvailable() {
   if (state.toast) return true
   const m = state.feeds.media
-  if (m && m.available && m.title && m.status !== 'Stopped') return true
+  // Playing, not merely present: a browser leaves its player registered and
+  // paused long after the sound stops, which kept the pill up indefinitely.
+  if (m && m.available && m.title && m.status === 'Playing') return true
   return (state.feeds.timers || []).length > 0
 }
 
@@ -276,8 +278,8 @@ function buildTabs() {
     const btn = h(
       'button.tab',
       { 'data-tab': id, title: def.label, onclick: (e) => (e.stopPropagation(), setTab(id)) },
-      h('span', { html: def.icon || '' }),
-      def.label,
+      h('span.tab-icon', { html: def.icon || '' }),
+      h('span.tab-label', { text: def.label }),
       badge
     )
     def.button = btn
@@ -352,7 +354,7 @@ function toast(icon, text, ms = 2600) {
 
 function updateAmbient() {
   const m = state.feeds.media
-  const mediaLive = !!(m && m.available && m.title && m.status !== 'Stopped')
+  const mediaLive = !!(m && m.available && m.title && m.status === 'Playing')
   const soonest = (state.feeds.timers || [])[0]
   const rows = { ambToast: false, ambTimer: false, ambMedia: false }
 

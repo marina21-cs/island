@@ -15,10 +15,43 @@ const CODES = {
   95: ['Thunderstorm', '⛈'], 96: ['Thunderstorm', '⛈'], 99: ['Thunderstorm', '⛈'],
 }
 
+// Open-Meteo returns the whole day's hours; only the ones still ahead matter.
+function sliceHourly(hourly, nowIso) {
+  if (!hourly || !Array.isArray(hourly.time)) return []
+  let start = hourly.time.findIndex((t) => t >= nowIso)
+  if (start < 0) start = 0
+  return hourly.time.slice(start, start + 8).map((t, i) => {
+    const code = hourly.weather_code[start + i]
+    return {
+      hour: Number(t.slice(11, 13)),
+      temp: Math.round(hourly.temperature_2m[start + i]),
+      icon: (CODES[code] || ['', '·'])[1],
+    }
+  })
+}
+
+function sliceDaily(daily) {
+  if (!daily || !Array.isArray(daily.time)) return []
+  return daily.time.slice(0, 6).map((t, i) => ({
+    date: t,
+    icon: (CODES[daily.weather_code[i]] || ['', '·'])[1],
+    max: Math.round(daily.temperature_2m_max[i]),
+    min: Math.round(daily.temperature_2m_min[i]),
+  }))
+}
+
 class Weather extends EventEmitter {
   constructor() {
     super()
-    this.state = { available: false, city: '', temp: null, text: '', icon: '' }
+    this.state = {
+      available: false,
+      city: '',
+      temp: null,
+      text: '',
+      icon: '',
+      hourly: [],
+      daily: [],
+    }
     this.timer = null
     this.retry = null
     this.place = null
@@ -77,7 +110,11 @@ class Weather extends EventEmitter {
       store.write('weather-place', this.place)
     }
     const data = await this.json(
-      `${FORECAST}?latitude=${this.place.lat}&longitude=${this.place.lon}&current=temperature_2m,weather_code`
+      `${FORECAST}?latitude=${this.place.lat}&longitude=${this.place.lon}` +
+        '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code' +
+        '&hourly=temperature_2m,weather_code' +
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+        '&forecast_days=6&timezone=auto'
     )
     const cur = data && data.current
     if (!cur) {
@@ -91,9 +128,15 @@ class Weather extends EventEmitter {
     this.set({
       available: true,
       city: this.place.name,
+      lat: this.place.lat,
+      lon: this.place.lon,
       temp: Math.round(cur.temperature_2m),
+      humidity: Math.round(cur.relative_humidity_2m),
+      wind: Math.round(cur.wind_speed_10m),
       text,
       icon,
+      hourly: sliceHourly(data.hourly, cur.time),
+      daily: sliceDaily(data.daily),
     })
   }
 

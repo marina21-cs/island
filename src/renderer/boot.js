@@ -76,7 +76,11 @@
       // its own gradient when nothing does.
       $('orbArt').style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
       $('orb').classList.toggle('playing', !!playing)
-      $('ambArt').style.backgroundImage = has && data.art ? `url("${data.art}")` : ''
+      // No cover for a video clip, so fall back to the app's own icon: the
+      // point of the pill here is just "this app is making sound".
+      const ambImage = has ? data.art || data.sourceIcon : null
+      $('ambArt').style.backgroundImage = ambImage ? `url("${ambImage}")` : ''
+      $('ambArt').classList.toggle('icon', !!(has && !data.art && data.sourceIcon))
       if (has) {
         $('ambText').textContent = ''
         $('ambText').append(document.createTextNode(data.title))
@@ -109,7 +113,9 @@
       }
 
       const track = has ? `${data.player}|${data.title}` : ''
-      if (has && playing && track !== lastTrack) {
+      // Only real music announces itself. Scrolling a feed of clips would
+      // otherwise throw the card up on every single one.
+      if (has && playing && data.isMusic && track !== lastTrack) {
         lastTrack = track
         I.showActivity()
       }
