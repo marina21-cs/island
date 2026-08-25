@@ -25,6 +25,14 @@ function createStage(config) {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
+    // A toolbar-type window is excluded from KDE's task manager and alt-tab by
+    // its type, and comes up without _NET_WM_STATE_DEMANDS_ATTENTION.
+    // skipTaskbar alone is not enough: this Electron build never writes
+    // _NET_WM_STATE_SKIP_TASKBAR on X11 for any window type, so the panel
+    // showed up as an application window and flagged itself for attention.
+    // Toolbar windows still accept keyboard focus, which the panel's inputs
+    // need, and still honour the screen-saver always-on-top level.
+    type: 'toolbar',
     focusable: true,
     show: false,
     acceptFirstMouse: true,
@@ -56,7 +64,16 @@ function createStage(config) {
   win.setShape([{ x: 0, y: 0, width: 1, height: 1 }])
 
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'))
-  win.once('ready-to-show', () => win.showInactive())
+  win.once('ready-to-show', () => {
+    // showInactive, not show — appearing must never steal focus from whatever
+    // the user is typing in.
+    win.showInactive()
+    // The constructor's skipTaskbar does not survive the map on X11: the
+    // window comes up listed in _NET_CLIENT_LIST with no
+    // _NET_WM_STATE_SKIP_TASKBAR, so KDE's task manager shows an entry for a
+    // window that is not an application. Re-assert once it is really mapped.
+    win.setSkipTaskbar(true)
+  })
 
   const reposition = () => {
     if (win.isDestroyed()) return

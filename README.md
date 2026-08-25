@@ -89,11 +89,62 @@ owns fails to register and is reported on stdout rather than failing silently.
 State lives beside it: `board.json`, `notes.json`, `budget.json`,
 `timers.json`, `clipboard.json`, `pinned.json`.
 
-## Start at login
+## Install as a permanent service
 
-Tray icon → **Start at login**. That writes
-`~/.config/autostart/island.desktop`. Electron's `setLoginItemSettings` is
-macOS/Windows only, so the XDG entry is written directly.
+```bash
+./scripts/island install
+```
+
+That copies the app to `~/.local/lib/island` (self-contained — the checkout can
+be moved or deleted afterwards), installs a systemd user unit, and wires it to
+start at every graphical login. Re-run it to deploy changes.
+
+```bash
+island status      # what is running, from where, and what starts it
+island restart
+island logs -f
+island uninstall   # leaves ~/.config/island alone
+```
+
+### Why not WantedBy=graphical-session.target
+
+The obvious wiring does not work on this machine, and the two alternatives are
+worse:
+
+- `graphical-session.target` **never activates** — Plasma is started by
+  `startplasma-x11`, not by systemd, so a unit wanting that target sits idle
+  forever.
+- `default.target` is reached **at boot**, because lingering is enabled. The
+  panel would launch before an X server exists and crash-loop with no
+  `DISPLAY`.
+
+So the unit is wired to no target, and an XDG autostart entry starts it once
+the desktop is actually up. That entry runs `island autostart`, which first
+re-imports `DISPLAY` and `XAUTHORITY` into the user manager — `XAUTHORITY` is a
+fresh `/tmp` path every session, and the user manager survives logout, so a
+stale value would point at a dead cookie. It also clears any failed state left
+by the previous logout, or the next start would be refused as "repeated too
+quickly".
+
+The `[Install] WantedBy=graphical-session.target` is kept for portability: on a
+systemd-managed session (Plasma on Wayland) the target does activate and the
+unit starts from it. Both paths together are safe — the autostart entry issues
+a restart, and the app holds a single-instance lock.
+
+### Window type
+
+The panel is a `toolbar`-type window, not a normal one. `skipTaskbar: true`
+looks like the right answer but this Electron build never writes
+`_NET_WM_STATE_SKIP_TASKBAR` on X11 for any window type — verified by probing
+all five types — so the panel appeared in KDE's task manager and set
+`_NET_WM_STATE_DEMANDS_ATTENTION` on itself every launch. A toolbar window is
+excluded from the task manager and alt-tab by its type, still accepts keyboard
+focus for the panel's inputs, and still honours the screen-saver
+always-on-top level.
+
+The tray's **Start at login** checkbox toggles the same autostart entry, so it
+stays in step with the installer rather than setting up a second, unsupervised
+launch path.
 
 ## Not wired up
 

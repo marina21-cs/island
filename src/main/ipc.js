@@ -56,6 +56,16 @@ function resync(send, cfg) {
   }
 }
 
+// The last shape the renderer asked for. Coming back from suspend, KWin can
+// drop the window's shape and its always-on-top flag; re-applying what we
+// already know avoids waiting for the renderer's next idle sweep.
+let lastShape = null
+
+function reapplyShape(win) {
+  if (!win || win.isDestroyed() || !lastShape) return
+  win.setShape(lastShape)
+}
+
 function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
   for (const [name, service] of FEEDS) {
     service.on('update', (state) => send(`island:${name}`, state))
@@ -82,7 +92,8 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
         width: Math.round(r.width) + pad * 2,
         height: Math.round(r.height) + pad * 2,
       }))
-    win.setShape(shape.length ? shape : [{ x: 0, y: 0, width: 1, height: 1 }])
+    lastShape = shape.length ? shape : [{ x: 0, y: 0, width: 1, height: 1 }]
+    win.setShape(lastShape)
   })
 
   ipcMain.handle('island:media', (_e, action) => S.mpris.control(action))
@@ -143,4 +154,4 @@ function stopServices() {
   for (const s of Object.values(S)) if (typeof s.stop === 'function') s.stop()
 }
 
-module.exports = { wire, startServices, stopServices, snapshot, resync, services: S }
+module.exports = { wire, startServices, stopServices, snapshot, resync, reapplyShape, services: S }

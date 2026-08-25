@@ -1,4 +1,4 @@
-const { app, Tray, Menu } = require('electron')
+const { app, Tray, Menu, powerMonitor } = require('electron')
 
 // Must be set before the app is ready: without an ARGB visual, a transparent
 // window on X11 renders opaque black instead of see-through.
@@ -101,6 +101,19 @@ function boot() {
     shot: () => ipc.services.capture.screenshot('region'),
     quit: () => app.quit(),
   })
+
+  // Suspend/resume and screen locking can leave KWin holding a stale idea of
+  // the window: it comes back behind other windows, or without its shape. Both
+  // are cheap to re-assert, so do it rather than wait for the idle sweep.
+  const reassert = () => {
+    if (!win || win.isDestroyed() || !visible) return
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    win.setSkipTaskbar(true)
+    ipc.reapplyShape(win)
+  }
+  powerMonitor.on('resume', () => setTimeout(reassert, 1200))
+  powerMonitor.on('unlock-screen', () => setTimeout(reassert, 400))
 
   win.webContents.on('did-finish-load', () => {
     ipc.resync(send, cfg)

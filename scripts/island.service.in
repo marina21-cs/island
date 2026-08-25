@@ -1,0 +1,35 @@
+[Unit]
+Description=Island — Dynamic Island panel for KDE Plasma
+Documentation=file://@APP_DIR@/README.md
+
+# Deliberately wired to no target on this machine.
+#
+# graphical-session.target never activates here: Plasma is started by
+# startplasma-x11, not by systemd, so a WantedBy on it would never fire.
+# default.target is worse — lingering is enabled, so it is reached at boot,
+# long before an X server exists, and Electron would crash-loop with no
+# DISPLAY. The XDG autostart entry starts this unit once the desktop is
+# actually up, which is the only moment DISPLAY and XAUTHORITY are valid.
+#
+# The [Install] section below is kept anyway: on a systemd-managed session
+# (Plasma on Wayland) the target does activate, and the unit then starts from
+# it. Both paths are safe together — the autostart entry issues a restart, and
+# the app holds a single-instance lock.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=@APP_DIR@
+ExecStart=@ELECTRON@ @APP_DIR@
+
+# on-failure, not always: quitting from the tray must stay quit.
+Restart=on-failure
+RestartSec=3
+
+KillMode=mixed
+TimeoutStopSec=10
+Slice=app.slice
+
+[Install]
+WantedBy=graphical-session.target

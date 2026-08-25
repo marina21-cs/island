@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Island (session start)
+Comment=Hands the Island to systemd once the desktop is up
+Exec=@BIN@ autostart
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

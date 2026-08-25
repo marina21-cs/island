@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# Island — install/manage the panel as a permanent user service.
+#
+# The panel is a plain Electron app: no bundler, no transpile, no dev server.
+# "Production" here means a self-contained copy under ~/.local/lib that does
+# not depend on the source checkout, launched by the system Electron.
+set -euo pipefail
+
+APP=island
+PREFIX="${HOME}/.local"
+APP_DIR="${PREFIX}/lib/${APP}"
+BIN="${PREFIX}/bin/${APP}"
+UNIT_DIR="${HOME}/.config/systemd/user"
+UNIT="${UNIT_DIR}/${APP}.service"
+AUTOSTART="${HOME}/.config/autostart/${APP}.desktop"
+MENU="${PREFIX}/share/applications/${APP}.desktop"
+ICON_DIR="${PREFIX}/share/icons/hicolor/128x128/apps"
+DATA_DIR="${HOME}/.config/${APP}"
+
+c_ok=$'\033[32m'; c_bad=$'\033[31m'; c_dim=$'\033[2m'; c_b=$'\033[1m'; c_0=$'\033[0m'
+[ -t 1 ] || { c_ok=; c_bad=; c_dim=; c_b=; c_0=; }
+
+die() { printf '%sisland:%s %s\n' "$c_bad" "$c_0" "$*" >&2; exit 1; }
+say() { printf '  %s\n' "$*"; }
+
+electron_bin() {
+  command -v electron 2>/dev/null || command -v electron39 2>/dev/null || true
+}
+
+# Where to install from. Running ./scripts/island from the checkout uses the
+# checkout; running the installed copy falls back to the path recorded at
+# install time, so `island update` works from anywhere.
+resolve_src() {
+  local self src
+  self="$(readlink -f "${BASH_SOURCE[0]}")"
+  src="$(dirname "$(dirname "$self")")"
+  if [ -f "$src/package.json" ] && grep -q '"name": *"island"' "$src/package.json"; then
+    printf '%s\n' "$src"; return 0
+  fi
+  if [ -f "$APP_DIR/.source" ]; then
+    src="$(cat "$APP_DIR/.source")"
+    if [ -f "$src/package.json" ]; then printf '%s\n' "$src"; return 0; fi
+  fi
+  return 1
+}
+
+# Count only main browser processes. Electron's helpers (renderer, gpu, zygote)
+# carry the app path too but are marked --type=, and a bare `pgrep -f` also
+# matches the shell running the check itself — both would read as duplicates.
+main_pids() {
+  local pid cl out=""
+  for pid in $(pgrep -f "$APP_DIR" 2>/dev/null || true); do
+    [ -r "/proc/$pid/cmdline" ] || continue
+    cl="$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+    case "$cl" in *--type=*) continue ;; esac
+    case "$(printf '%s' "$cl" | head -1)" in *electron*) out="$out $pid" ;; esac
+  done
+  printf '%s' "${out# }"
+}
+
+render() { sed -e "s|@APP_DIR@|$APP_DIR|g" -e "s|@ELECTRON@|$1|g" -e "s|@BIN@|$BIN|g" -e "s|@ICON@|$APP|g" "$2"; }
+
+make_icon() {
+  command -v magick >/dev/null 2>&1 || return 0
+  mkdir -p "$ICON_DIR"
+  magick -size 128x128 xc:none -fill white \
+    -draw "roundrectangle 18,48 110,84 18,18" "$ICON_DIR/${APP}.png" 2>/dev/null || true
+}
+
+cmd_install() {
+  local src electron
+  src="$(resolve_src)" || die "run this from the checkout: ./scripts/island install"
+  electron="$(electron_bin)"
+  [ -n "$electron" ] || die "no electron on PATH — install the 'electron' package"
+  [ -f "$src/src/main/index.js" ] || die "no src/main/index.js under $src"
+
+  if [ ! -d "$src/node_modules" ]; then
+    say "installing runtime dependencies…"
+    ( cd "$src" && npm install --omit=dev --no-audit --no-fund >/dev/null )
+  fi
+
+  # Stop first: the files are about to be replaced underneath it.
+  systemctl --user stop "${APP}.service" 2>/dev/null || true
+
+  say "staging $APP_DIR"
+  rm -rf "$APP_DIR"
+  mkdir -p "$APP_DIR"
+  local item
+  for item in package.json package-lock.json README.md src node_modules scripts; do
+    [ -e "$src/$item" ] && cp -a "$src/$item" "$APP_DIR/"
+  done
+  printf '%s\n' "$src" > "$APP_DIR/.source"
+
+  mkdir -p "$(dirname "$BIN")" "$UNIT_DIR" "$(dirname "$AUTOSTART")" "$(dirname "$MENU")"
+  install -m 755 "$src/scripts/island" "$BIN"
+  render "$electron" "$src/scripts/island.service.in"           > "$UNIT"
+  render "$electron" "$src/scripts/island-autostart.desktop.in" > "$AUTOSTART"
+  make_icon
+  render "$electron" "$src/scripts/island.desktop.in"           > "$MENU"
+  chmod 644 "$UNIT" "$AUTOSTART" "$MENU"
+
+  systemctl --user daemon-reload
+  # Harmless here (the target never activates on this X11 session) but makes
+  # the unit start on its own under a systemd-managed session.
+  systemctl --user enable "${APP}.service" >/dev/null 2>&1 || true
+
+  cmd_autostart
+  printf '%sinstalled%s\n' "$c_ok" "$c_0"
+  cmd_status
+}
+
+cmd_uninstall() {
+  systemctl --user disable --now "${APP}.service" >/dev/null 2>&1 || true
+  rm -f "$UNIT" "$AUTOSTART" "$MENU" "$BIN" "$ICON_DIR/${APP}.png"
+  rm -rf "$APP_DIR"
+  systemctl --user daemon-reload
+  printf '%sremoved%s\n' "$c_ok" "$c_0"
+  say "user data left alone at $DATA_DIR (delete it yourself if you want it gone)"
+}
+
+# Called by the XDG autostart entry, once per graphical login.
+cmd_autostart() {
+  # XAUTHORITY is a fresh /tmp path every session and the user manager
+  # survives logout (lingering), so a stale value would point at a dead
+  # cookie. Re-import before (re)starting.
+  systemctl --user import-environment DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null || true
+  # At logout X goes away and Electron dies with it; on-failure then retries
+  # until the start limit trips, leaving the unit failed. Without clearing that
+  # counter the next login's restart is refused as "repeated too quickly".
+  systemctl --user reset-failed "${APP}.service" 2>/dev/null || true
+  # restart, not start: an instance left over from the previous session would
+  # otherwise keep the old, now-invalid DISPLAY.
+  systemctl --user restart "${APP}.service"
+}
+
+cmd_start()   { systemctl --user start   "${APP}.service"; }
+cmd_stop()    { systemctl --user stop    "${APP}.service"; }
+cmd_restart() { cmd_autostart; }
+cmd_logs()    { if [ "${1:-}" = "-f" ]; then journalctl --user -u "${APP}.service" -f; else journalctl --user -u "${APP}.service" -n "${1:-80}" --no-pager; fi; }
+
+cmd_status() {
+  local active enabled pids n
+  active="$(systemctl --user is-active "${APP}.service" 2>/dev/null || true)"
+  enabled="$(systemctl --user is-enabled "${APP}.service" 2>/dev/null || echo n/a)"
+
+  printf '\n%sIsland%s\n' "$c_b" "$c_0"
+  if [ "$active" = active ]; then
+    printf '  state       %sactive%s' "$c_ok" "$c_0"
+    printf ' (pid %s, up %s)\n' \
+      "$(systemctl --user show -p MainPID --value "${APP}.service")" \
+      "$(systemctl --user show -p ActiveEnterTimestamp --value "${APP}.service" | cut -d' ' -f2-3)"
+  else
+    printf '  state       %s%s%s\n' "$c_bad" "${active:-unknown}" "$c_0"
+  fi
+
+  say "unit        $UNIT ($enabled)"
+  say "app         $APP_DIR"
+  say "exec        $(systemctl --user show -p ExecStart --value "${APP}.service" 2>/dev/null | sed -n 's/.*path=\([^ ;]*\).*/\1/p')"
+  say "data        $DATA_DIR"
+
+  if [ -f "$AUTOSTART" ]; then
+    printf '  autostart   %son%s  (%s)\n' "$c_ok" "$c_0" "$AUTOSTART"
+  else
+    printf '  autostart   %soff%s — it will not come back after logout\n' "$c_bad" "$c_0"
+  fi
+
+  # graphical-session.target is what a "normal" setup would hang this off; say
+  # plainly which trigger is really in play.
+  if [ "$(systemctl --user is-active graphical-session.target 2>/dev/null)" = active ]; then
+    say "trigger     graphical-session.target + XDG autostart"
+  else
+    say "trigger     XDG autostart (graphical-session.target is inactive here)"
+  fi
+
+  pids="$(main_pids)"
+  n="$(printf '%s' "$pids" | wc -w)"
+  if [ "$n" -le 1 ]; then
+    printf '  instances   %s%s%s\n' "$c_ok" "$n" "$c_0"
+  else
+    printf '  instances   %s%s — duplicates: %s%s\n' "$c_bad" "$n" "$pids" "$c_0"
+  fi
+  printf '\n'
+}
+
+case "${1:-status}" in
+  install)   cmd_install ;;
+  update)    cmd_install ;;
+  uninstall) cmd_uninstall ;;
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   cmd_restart ;;
+  status)    cmd_status ;;
+  logs)      shift; cmd_logs "$@" ;;
+  autostart) cmd_autostart ;;
+  *) cat <<USAGE
+island <command>
+
+  install     copy the app to ~/.local/lib/island and wire up login startup
+  update      re-copy from the checkout (same as install)
+  uninstall   remove the service, autostart entry and installed copy
+  start|stop|restart
+  status      what is running, from where, and what starts it
+  logs [n|-f] journal for the service (default 80 lines)
+USAGE
+  exit 1 ;;
+esac

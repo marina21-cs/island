@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Island
+GenericName=Dynamic Island panel
+Comment=Top-edge panel with media, launcher, alerts and tools
+Exec=@BIN@ start
+Icon=@ICON@
+Terminal=false
+StartupNotify=false
+Categories=Utility;
+Keywords=island;notch;panel;dock;
