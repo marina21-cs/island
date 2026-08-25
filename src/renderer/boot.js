@@ -244,6 +244,7 @@
   api.onNotifications((d) => I.dispatch('notifications', d))
   api.onCapture((d) => I.dispatch('capture', d))
   api.onWeather((d) => I.dispatch('weather', d))
+  api.onLyrics((d) => I.dispatch('lyrics', d))
 
   /* --- boot -------------------------------------------------------------- */
 
@@ -253,7 +254,7 @@
 
     for (const kind of [
       'vitals', 'audio', 'brightness', 'capture', 'weather',
-      'timers', 'clipboard', 'notifications', 'media',
+      'timers', 'clipboard', 'notifications', 'lyrics', 'media',
     ]) {
       if (snap[kind] !== undefined) I.dispatch(kind, snap[kind])
     }

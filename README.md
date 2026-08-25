@@ -41,6 +41,7 @@ quiet pill instead — a browser making noise is not a new song.
 | **Home** | Now playing with transport and the source app's icon, a week calendar, weather, screenshot and screen recording |
 | **Tray** | App launcher built from your `.desktop` entries, with pinning and search |
 | **Stats** | CPU, memory, GPU and battery with real numbers, plus network throughput |
+| **Lyrics** | Time-synced lyrics for whatever Spotify is playing, matched on duration |
 | **Weather** | Hourly and daily forecast on a shared scale, over a dark map of where you are |
 | **Alerts** | Live desktop notifications with an unread badge |
 | **Board** | Kanban with drag-and-drop, plus notes |
@@ -48,6 +49,9 @@ quiet pill instead — a browser making noise is not a new song.
 | **More** | Countdown timers and clipboard history |
 
 <div align="center">
+<img src="docs/shot-lyrics.png" alt="Lyrics" width="560">
+<br><em>Synced lyrics from LRCLIB, highlighted against the player's own clock</em>
+<br><br>
 <img src="docs/shot-weather.png" alt="Weather with map" width="760">
 <br><em>Forecast from Open-Meteo; map tiles fetched and composited in the main process</em>
 <br><br>
@@ -156,6 +160,42 @@ silently dead, while launching the same binary from a shell works perfectly.
 which the unit reads. Per-unit, not a global `set-environment`, which would
 hand the session bus to every other user service too.
 
+## Lyrics, and why they are Spotify-only
+
+Lyrics come from [LRCLIB](https://lrclib.net) — free, no API key — and are shown
+only for Spotify. Everything else that publishes to MPRIS, browsers especially,
+reports metadata too loose to identify a *recording*: a tab title is not a track
+name, and without a reliable duration there is nothing to match against.
+
+Wrong lyrics that scroll in time are worse than no lyrics, because they look
+authoritative. So the matching is deliberately strict:
+
+1. **Exact first.** Artist, track, album and duration together. A wrong length
+   returns 404 rather than someone else's words.
+2. **Then a filtered search**, which only accepts a candidate whose normalised
+   title matches, whose artist matches, and whose duration is within **3
+   seconds**. Editions, `(Remastered)`, `- Live at …` and `feat.` are
+   normalised away before comparing.
+3. **Otherwise, nothing.** The panel says it found nothing instead of guessing.
+
+A real match looks like this — Spotify reporting `Arriba! - Live` at 194.6s,
+LRCLIB answering with `Arriba! (Live)` from the same album at 195.0s:
+
+```
+    title : Arriba! - Live        →   track : Arriba! (Live)
+    artist: planetboom            →   artist: planetboom
+    album : Sound Of Victory      →   album : Sound Of Victory
+    length: 194.6s                →   length: 195.0s
+```
+
+MPRIS reports position about once a second, which is very visible on a lyric
+line, so the renderer interpolates with the wall clock between reports and
+resets on every real position update.
+
+Widening this past Spotify is a one-line change to `SOURCES` in
+`src/main/services/lyrics.js` — the accuracy guarantees above are what would
+suffer, which is why it is not the default.
+
 ## Configuration
 
 `~/.config/island/config.json`, merged over the defaults in
@@ -238,6 +278,7 @@ allow remote content:
 - **Open-Meteo** for the forecast — no API key, no identifier, just coordinates
 - **CARTO** basemap tiles for the map, cached locally for a day
 - **Cover art** for whatever is playing, when the player supplies an `https` URL
+- **LRCLIB** for lyrics, queried by artist, title and duration — only while Spotify plays
 
 ## Known limits
 
@@ -254,6 +295,7 @@ allow remote content:
 
 Built for KDE Plasma with [Electron](https://electronjs.org).
 Forecast by [Open-Meteo](https://open-meteo.com).
+Lyrics by [LRCLIB](https://lrclib.net).
 Map tiles © [OpenStreetMap](https://openstreetmap.org/copyright) contributors,
 tiles by [CARTO](https://carto.com/attributions).
 

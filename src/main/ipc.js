@@ -14,6 +14,7 @@ const S = {
   store: require('./services/store'),
   convert: require('./services/convert'),
   map: require('./services/map'),
+  lyrics: require('./services/lyrics'),
 }
 
 // Every service pushes to one channel; the renderer subscribes by name.
@@ -27,6 +28,7 @@ const FEEDS = [
   ['notifications', S.notifs],
   ['capture', S.capture],
   ['weather', S.weather],
+  ['lyrics', S.lyrics],
 ]
 
 function snapshot(cfg) {
@@ -40,6 +42,7 @@ function snapshot(cfg) {
     notifications: S.notifs.current(),
     capture: S.capture.current(),
     weather: S.weather.current(),
+    lyrics: S.lyrics.current(),
     pinned: S.store.read('pinned', null),
     config: {
       collapseDelayMs: cfg.collapseDelayMs,
@@ -186,6 +189,8 @@ function startServices(cfg) {
   S.audio.start()
   S.brightness.start()
   S.mpris.start()
+  // Lyrics follow whatever mpris reports; they never poll on their own.
+  S.lyrics.start(S.mpris)
   S.notifs.start()
   S.weather.start(cfg.weatherCity, undefined, cfg.weatherLat, cfg.weatherLon)
 }

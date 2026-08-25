@@ -1685,3 +1685,76 @@ button.mn-icon:hover { color: var(--ink); background: var(--fill); }
   border-bottom: 1.8px solid #fff;
   transform: rotate(-45deg) translate(1px, -1px);
 }
+
+/* --- Lyrics -------------------------------------------------------------- */
+
+.ly-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.ly-meta { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.ly-title {
+  font-size: 13px;
+  font-weight: 640;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ly-sub { font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ly-badge {
+  flex: none;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--fill);
+}
+
+.ly-badge:empty { display: none; }
+.ly-badge.on { color: var(--green); background: rgba(29, 185, 84, 0.14); }
+
+.ly-body {
+  height: calc(100% - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  /* Fade the ends so lines arrive and leave rather than being cut off. */
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 34px, #000 calc(100% - 34px), transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 34px, #000 calc(100% - 34px), transparent);
+}
+
+.ly-body::-webkit-scrollbar { width: 4px; }
+.ly-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 3px; }
+
+.ly-line {
+  padding: 5px 2px;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.32);
+  transition: color 0.28s var(--e), transform 0.28s var(--e);
+  transform-origin: left center;
+}
+
+.ly-line.on {
+  color: var(--ink);
+  font-weight: 650;
+  transform: scale(1.035);
+}
+
+.ly-line.ly-static { color: rgba(255, 255, 255, 0.72); font-size: 13px; font-weight: 500; }
+.ly-spacer { height: 9px; }
+
+.ly-gap { padding: 3px 2px; }
+.ly-dots { font-size: 10px; letter-spacing: 0.22em; color: rgba(255, 255, 255, 0.22); }
+.ly-line.ly-gap.on .ly-dots { color: rgba(255, 255, 255, 0.5); }
+
+.ly-empty { display: grid; place-content: center; text-align: center; height: calc(100% - 56px); padding: 0 26px; }
+.ly-emptyhead { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.ly-emptynote { font-size: 11px; color: var(--ink-3); line-height: 1.5; margin-top: 7px; }
+
+.ly-credit { color: var(--ink-3); text-align: right; padding-top: 6px; }

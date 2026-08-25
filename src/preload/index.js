@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('island', {
   onNotifications: on('island:notifications'),
   onCapture: on('island:capture'),
   onWeather: on('island:weather'),
+  onLyrics: on('island:lyrics'),
   onCommand: on('island:command'),
 
   setShape: (rects) => ipcRenderer.send('island:shape', rects),
