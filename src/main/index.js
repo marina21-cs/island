@@ -88,6 +88,8 @@ function boot() {
     shapePad: () => shapePad,
     onQuit: () => app.quit(),
     onHide: () => setVisible(false),
+    onReload: () => win && !win.isDestroyed() && win.reload(),
+    autostart,
   })
   ipc.startServices(cfg)
 
@@ -120,6 +122,9 @@ function boot() {
     // Dev aid: ISLAND_OPEN=tray boots straight into a tab, so a screenshot can
     // be taken without stealing the pointer.
     if (process.env.ISLAND_OPEN) setTimeout(() => open(process.env.ISLAND_OPEN), 600)
+    if (process.env.ISLAND_MENU) {
+      setTimeout(() => send('island:command', { type: 'menu' }), 1400)
+    }
   })
 
   try {

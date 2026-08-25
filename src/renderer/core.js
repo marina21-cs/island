@@ -68,9 +68,7 @@ const HOVER_BUMP = { w: 30, h: 8, r: 3 }
 const el = {
   root: document.documentElement,
   notch: $('notch'),
-  volume: $('volume'),
-  brightness: $('brightness'),
-  sliders: [$('volume'), $('brightness')],
+  menu: $('menu'),
   nav: $('nav'),
   tabsBar: $('tabs'),
   panes: $('panes'),
@@ -243,7 +241,8 @@ function setMode(mode) {
   el.notch.dataset.state = mode
   const wanted = LAYER_FOR[mode] || mode
   for (const layer of el.layers) layer.classList.toggle('on', layer.dataset.layer === wanted)
-  for (const s of el.sliders) s.classList.toggle('off', mode !== 'expanded')
+  // The menu belongs to the open panel; closing the panel closes it.
+  if (mode !== 'expanded') setMenu(false)
   // Hand focus back when the panel closes; a collapsed pill has nothing to
   // type into and should not be swallowing the user's keystrokes.
   if (mode !== 'expanded' && previous === 'expanded') api.releaseFocus()
@@ -420,7 +419,8 @@ el.notch.addEventListener('click', (e) => {
 
 el.notch.addEventListener('contextmenu', (e) => {
   e.preventDefault()
-  api.openMenu()
+  if (state.mode !== 'expanded') setPinned(true)
+  setMenu(true)
 })
 
 el.btnPin.addEventListener('click', (e) => {
@@ -430,11 +430,17 @@ el.btnPin.addEventListener('click', (e) => {
 
 el.btnMenu.addEventListener('click', (e) => {
   e.stopPropagation()
-  api.openMenu()
+  toggleMenu()
+})
+
+// Anywhere else in the panel dismisses it, the way a menu should.
+el.notch.addEventListener('mousedown', (e) => {
+  if (!e.target.closest('#menu, #btnMenu')) setMenu(false)
 })
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (el.menu.classList.contains('open')) return setMenu(false)
     if (document.activeElement) document.activeElement.blur()
     setPinned(false)
     return
@@ -457,6 +463,18 @@ window.addEventListener('resize', () => pump())
 // Layout inside a pane can change without a transition (a list growing, an
 // icon loading); a cheap idle sweep keeps the shape honest.
 setInterval(syncShape, 500)
+
+const menuHooks = []
+const onMenuOpen = (fn) => menuHooks.push(fn)
+
+function setMenu(open) {
+  if (el.menu.classList.contains('open') === open) return
+  el.menu.classList.toggle('open', open)
+  if (open) for (const fn of menuHooks) fn()
+  pump(280)
+}
+
+const toggleMenu = () => setMenu(!el.menu.classList.contains('open'))
 
 // Segmented control: three panels share this, so it lives here.
 function segmented(items, onPick, initial) {
@@ -514,6 +532,9 @@ window.Island = {
   toast,
   showActivity,
   wake,
+  setMenu,
+  toggleMenu,
+  onMenuOpen,
   segmented,
   updateAmbient,
   baseMode,

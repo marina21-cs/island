@@ -21,7 +21,11 @@ contextBridge.exposeInMainWorld('island', {
   onCommand: on('island:command'),
 
   setShape: (rects) => ipcRenderer.send('island:shape', rects),
-  openMenu: () => ipcRenderer.send('island:menu'),
+  settings: () => ipcRenderer.invoke('island:settings'),
+  setAutostart: (on) => ipcRenderer.invoke('island:set-autostart', on),
+  hidePanel: () => ipcRenderer.send('island:hide'),
+  reloadPanel: () => ipcRenderer.send('island:reload'),
+  quitApp: () => ipcRenderer.send('island:quit'),
   releaseFocus: () => ipcRenderer.send('island:blur'),
 
   media: (action) => ipcRenderer.invoke('island:media', action),

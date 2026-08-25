@@ -71,7 +71,7 @@ function reapplyShape(win) {
   win.setShape(lastShape)
 }
 
-function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
+function wire({ win, cfg, send, shapePad, onQuit, onHide, autostart, onReload }) {
   for (const [name, service] of FEEDS) {
     service.on('update', (state) => send(`island:${name}`, state))
   }
@@ -159,19 +159,24 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
   ipcMain.handle('island:convert-run', (_e, mode, files) => S.convert.convert(mode, files))
   ipcMain.handle('island:convert-reveal', (_e, file) => S.convert.reveal(file))
 
+  // The gear menu lives inside the panel now, so the actions the native menu
+  // used to own need their own channels.
+  ipcMain.handle('island:settings', () => ({
+    autostart: autostart.isEnabled(),
+    clipboardPaused: S.clip.current().paused,
+  }))
+  ipcMain.handle('island:set-autostart', (_e, on) => {
+    autostart.setEnabled(!!on)
+    return autostart.isEnabled()
+  })
+  ipcMain.on('island:hide', () => onHide())
+  ipcMain.on('island:reload', () => onReload())
+  ipcMain.on('island:quit', () => onQuit())
+
   ipcMain.on('island:blur', () => {
     if (win && !win.isDestroyed() && win.isFocused()) win.blur()
   })
 
-  ipcMain.on('island:menu', () => {
-    if (!win || win.isDestroyed()) return
-    Menu.buildFromTemplate([
-      { label: 'Hide panel', click: onHide },
-      { label: 'Reload', click: () => win.reload() },
-      { type: 'separator' },
-      { label: 'Quit', click: onQuit },
-    ]).popup({ window: win })
-  })
 }
 
 function startServices(cfg) {

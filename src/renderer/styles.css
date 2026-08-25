@@ -416,85 +416,6 @@ svg {
   pointer-events: auto;
 }
 
-/* --- volume and brightness ---------------------------------------------- */
-
-.slider {
-  position: absolute;
-  left: 50%;
-  background: var(--bg);
-  margin-left: calc(var(--w) / 2 + 10px);
-  width: 44px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 0 11px;
-  transition:
-    margin-left 0.5s var(--e),
-    opacity 0.25s var(--e),
-    transform 0.3s var(--e);
-}
-
-#volume { top: 0; height: 142px; border-radius: 0 0 19px 19px; }
-
-/* Brightness hangs under the volume rather than off the screen edge, so the
-   pair reads as one column of controls. */
-#brightness { top: 150px; height: 142px; border-radius: 19px; }
-
-.slider.off { opacity: 0; pointer-events: none; transform: translateY(-6px); }
-.slider.disabled { opacity: 0.4; }
-
-.vpct {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--ink-2);
-  letter-spacing: 0.01em;
-}
-
-.vtrack {
-  position: relative;
-  flex: 1 1 auto;
-  width: 24px;
-  border-radius: 12px;
-  background: #23232b;
-  overflow: hidden;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-.vtrack i {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 50%;
-  background: #f2f2f4;
-  border-radius: 12px;
-  transition: height 0.18s var(--e);
-}
-
-#brightness .vtrack i { background: #ffd479; }
-
-.vicon {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-button.vicon:hover { color: var(--ink); }
-.vicon svg .x { display: none; }
-#volume.muted .vicon { color: var(--red); }
-#volume.muted .vicon svg .w1,
-#volume.muted .vicon svg .w2 { display: none; }
-#volume.muted .vicon svg .x { display: block; }
-#brightness .vicon { cursor: default; color: #ffd479; }
-
 /* --- shared panel widgets ------------------------------------------------ */
 
 .hstack { display: flex; align-items: center; gap: 10px; }
@@ -1621,4 +1542,146 @@ button.vicon:hover { color: var(--ink); }
   font-size: 8.5px;
   color: rgba(255, 255, 255, 0.42);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* --- the gear menu ------------------------------------------------------- */
+/* Its own surface rather than a child of the notch: the notch clips its
+   overflow, and the menu is taller than the shorter panels. Hidden with
+   display:none so it drops out of the window shape entirely when closed. */
+
+#menu {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  margin-left: calc(var(--w) / 2 - 250px);
+  width: 246px;
+  display: none;
+  flex-direction: column;
+  padding: 9px 8px 8px;
+  border-radius: 14px;
+  background: #17171c;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 14px 34px rgba(0, 0, 0, 0.6);
+  transition: margin-left 0.5s var(--e);
+}
+
+#menu.open {
+  display: flex;
+  animation: mn-in 0.22s var(--e-pop);
+}
+
+@keyframes mn-in {
+  from { opacity: 0; transform: translateY(-7px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.mn-sliders { display: flex; flex-direction: column; gap: 9px; padding: 3px 4px 6px; }
+
+.mn-row { display: flex; align-items: center; gap: 9px; }
+
+.mn-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: 0;
+}
+
+button.mn-icon:hover { color: var(--ink); background: var(--fill); }
+.mn-icon.mn-sun { color: #ffd479; cursor: default; }
+.mn-icon svg .x { display: none; }
+#menu.muted #mnMute { color: var(--red); }
+#menu.muted #mnMute svg .w1,
+#menu.muted #mnMute svg .w2 { display: none; }
+#menu.muted #mnMute svg .x { display: block; }
+
+.mn-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 5px;
+  background: #26262f;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.mn-track i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  border-radius: 5px;
+  background: #f2f2f4;
+  transition: width 0.16s var(--e);
+}
+
+#mnBriTrack i { background: #ffd479; }
+
+.mn-val {
+  flex: none;
+  width: 34px;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.mn-note { font-size: 9.5px; color: var(--ink-3); padding-left: 31px; }
+.mn-note:empty { display: none; }
+
+.mn-div { height: 1px; background: var(--line); margin: 6px 2px; }
+
+.mn-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s var(--e);
+}
+
+.mn-item:hover { background: var(--fill); }
+.mn-item.mn-danger:hover { background: rgba(239, 68, 68, 0.16); color: var(--red); }
+
+.mn-check {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+}
+
+.mn-check.off { box-shadow: none; }
+
+.mn-item.on .mn-check {
+  background: var(--blue);
+  box-shadow: none;
+}
+
+.mn-item.on .mn-check::after {
+  content: '';
+  width: 7px;
+  height: 4px;
+  border-left: 1.8px solid #fff;
+  border-bottom: 1.8px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
 }

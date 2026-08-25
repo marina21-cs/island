@@ -146,6 +146,14 @@ The tray's **Start at login** checkbox toggles the same autostart entry, so it
 stays in step with the installer rather than setting up a second, unsupervised
 launch path.
 
+## The gear menu
+
+The ⚙ in the nav opens an in-panel menu holding the volume and brightness
+sliders, the login and clipboard toggles, and hide/reload/quit. Right-clicking
+the panel opens it too. It replaced Electron's native context menu, which
+cannot host a slider, and a pair of vertical sliders that used to float beside
+the panel and took up screen edge for two controls.
+
 ## Brightness
 
 The slider works today, but in software: `xrandr --brightness` on the primary

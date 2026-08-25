@@ -28,13 +28,13 @@
     }
   }
 
-  /* --- volume and brightness --------------------------------------------- */
+  /* --- the gear menu ------------------------------------------------------ */
 
-  // Both sliders behave identically; only the value they push differs.
-  function wireSlider(track, apply) {
+  // Horizontal now that the sliders live in a menu rather than a side column.
+  function wireSlider(track, apply, read) {
     const valueAt = (e) => {
       const r = track.getBoundingClientRect()
-      return Math.round(Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)) * 100)
+      return Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 100)
     }
     let dragging = false
     track.addEventListener('mousedown', (e) => {
@@ -48,21 +48,61 @@
     window.addEventListener('mouseup', () => (dragging = false))
     track.addEventListener('wheel', (e) => {
       e.preventDefault()
-      apply(current() + (e.deltaY < 0 ? 4 : -4))
+      apply(read() + (e.deltaY < 0 ? 4 : -4))
     })
-    let current = () => 0
-    return { setReader: (fn) => (current = fn) }
   }
 
-  const vol = wireSlider($('volTrack'), (v) => api.setVolume(v))
-  vol.setReader(() => (state.feeds.audio && state.feeds.audio.volume) || 0)
+  wireSlider(
+    $('mnVolTrack'),
+    (v) => api.setVolume(v),
+    () => (state.feeds.audio && state.feeds.audio.volume) || 0
+  )
+  wireSlider(
+    $('mnBriTrack'),
+    (v) => api.setBrightness(v),
+    () => (state.feeds.brightness && state.feeds.brightness.value) || 0
+  )
 
-  const bri = wireSlider($('briTrack'), (v) => api.setBrightness(v))
-  bri.setReader(() => (state.feeds.brightness && state.feeds.brightness.value) || 0)
-
-  $('volMute').addEventListener('click', (e) => {
+  $('mnMute').addEventListener('click', (e) => {
     e.stopPropagation()
     api.toggleMute()
+  })
+
+  const mnAutostart = $('mnAutostart')
+  const mnClipPause = $('mnClipPause')
+
+  mnAutostart.addEventListener('click', async (e) => {
+    e.stopPropagation()
+    const next = !mnAutostart.classList.contains('on')
+    const now = await api.setAutostart(next)
+    mnAutostart.classList.toggle('on', !!now)
+    I.toast(now ? '✓' : '·', now ? 'Starts at login' : 'Login start off')
+  })
+
+  mnClipPause.addEventListener('click', (e) => {
+    e.stopPropagation()
+    api.pauseClips(!mnClipPause.classList.contains('on'))
+  })
+
+  $('mnHide').addEventListener('click', (e) => {
+    e.stopPropagation()
+    api.hidePanel()
+  })
+  $('mnReload').addEventListener('click', (e) => {
+    e.stopPropagation()
+    api.reloadPanel()
+  })
+  $('mnQuit').addEventListener('click', (e) => {
+    e.stopPropagation()
+    api.quitApp()
+  })
+
+  // Autostart is owned by a file on disk, so read it back each time the menu
+  // opens rather than trusting a cached flag.
+  I.onMenuOpen(async () => {
+    const s = await api.settings()
+    mnAutostart.classList.toggle('on', !!s.autostart)
+    mnClipPause.classList.toggle('on', !!s.clipboardPaused)
   })
 
   /* --- feed handling ----------------------------------------------------- */
@@ -143,20 +183,21 @@
     }
 
     if (kind === 'brightness' && data) {
-      $('briPct').textContent = data.available ? `${data.value}%` : '—'
-      $('briFill').style.height = `${data.available ? data.value : 0}%`
-      $('brightness').classList.toggle('disabled', !data.available)
-      $('briIcon').title =
-        data.mode === 'software'
-          ? 'Brightness (software dim — see README for hardware control)'
-          : 'Brightness'
+      $('mnBriVal').textContent = data.available ? `${data.value}%` : '—'
+      $('mnBriFill').style.width = `${data.available ? data.value : 0}%`
+      $('mnBriRow').style.opacity = data.available ? '' : '0.45'
+      // Say plainly which kind of brightness this is.
+      $('mnBriNote').textContent =
+        data.mode === 'software' ? 'Software dim — README has the hardware rule' : ''
     }
 
     if (kind === 'audio' && data) {
-      $('volume').classList.toggle('muted', !!data.muted)
-      $('volPct').textContent = data.available ? `${data.volume}%` : '—'
-      $('volFill').style.height = `${data.muted ? 0 : data.volume}%`
+      $('menu').classList.toggle('muted', !!data.muted)
+      $('mnVolVal').textContent = data.available ? `${data.volume}%` : '—'
+      $('mnVolFill').style.width = `${data.muted ? 0 : data.volume}%`
     }
+
+    if (kind === 'clipboard' && data) mnClipPause.classList.toggle('on', !!data.paused)
 
     if (kind === 'capture' && data) {
       $('idleRec').classList.toggle('on', !!data.recording)
@@ -175,6 +216,9 @@
   api.onCommand((cmd) => {
     if (cmd.type === 'toggle') {
       I.setPinned(!state.pinned)
+    } else if (cmd.type === 'menu') {
+      I.setPinned(true)
+      I.setMenu(true)
     } else if (cmd.type === 'open') {
       I.setTab(cmd.tab)
       I.setPinned(true)

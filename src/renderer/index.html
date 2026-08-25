@@ -74,20 +74,33 @@
         </div>
       </div>
 
-      <div id="volume" class="surface slider">
-        <span class="vpct" id="volPct">—</span>
-        <span class="vtrack" id="volTrack"><i id="volFill"></i></span>
-        <button class="vicon" id="volMute" title="Mute">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w1" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="w2" d="M19 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M17 9.5l5 5m0-5l-5 5"/></svg>
-        </button>
-      </div>
+      <div id="menu" class="surface">
+        <div class="mn-sliders">
+          <div class="mn-row">
+            <button class="mn-icon" id="mnMute" title="Mute">
+              <svg viewBox="0 0 24 24" width="15" height="15"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w1" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="w2" d="M19 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M17 9.5l5 5m0-5l-5 5"/></svg>
+            </button>
+            <span class="mn-track" id="mnVolTrack"><i id="mnVolFill"></i></span>
+            <span class="mn-val" id="mnVolVal">—</span>
+          </div>
+          <div class="mn-row" id="mnBriRow">
+            <span class="mn-icon mn-sun">
+              <svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9"/></svg>
+            </span>
+            <span class="mn-track" id="mnBriTrack"><i id="mnBriFill"></i></span>
+            <span class="mn-val" id="mnBriVal">—</span>
+          </div>
+          <div class="mn-note" id="mnBriNote"></div>
+        </div>
 
-      <div id="brightness" class="surface slider">
-        <span class="vpct" id="briPct">—</span>
-        <span class="vtrack" id="briTrack"><i id="briFill"></i></span>
-        <span class="vicon" id="briIcon" title="Brightness">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9"/></svg>
-        </span>
+        <div class="mn-div"></div>
+        <button class="mn-item" id="mnAutostart"><span class="mn-check"></span><span>Start at login</span></button>
+        <button class="mn-item" id="mnClipPause"><span class="mn-check"></span><span>Pause clipboard capture</span></button>
+
+        <div class="mn-div"></div>
+        <button class="mn-item" id="mnHide"><span class="mn-check off"></span><span>Hide panel</span></button>
+        <button class="mn-item" id="mnReload"><span class="mn-check off"></span><span>Reload</span></button>
+        <button class="mn-item mn-danger" id="mnQuit"><span class="mn-check off"></span><span>Quit</span></button>
       </div>
     </div>
 
