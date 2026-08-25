@@ -1,0 +1,146 @@
+const { ipcMain, Menu } = require('electron')
+
+const S = {
+  mpris: require('./services/mpris'),
+  vitals: require('./services/vitals'),
+  timers: require('./services/timers'),
+  clip: require('./services/clipboard'),
+  audio: require('./services/audio'),
+  apps: require('./services/apps'),
+  notifs: require('./services/notifications'),
+  capture: require('./services/capture'),
+  weather: require('./services/weather'),
+  store: require('./services/store'),
+  convert: require('./services/convert'),
+}
+
+// Every service pushes to one channel; the renderer subscribes by name.
+const FEEDS = [
+  ['media', S.mpris],
+  ['vitals', S.vitals],
+  ['timers', S.timers],
+  ['clipboard', S.clip],
+  ['audio', S.audio],
+  ['notifications', S.notifs],
+  ['capture', S.capture],
+  ['weather', S.weather],
+]
+
+function snapshot(cfg) {
+  return {
+    media: S.mpris.current(),
+    vitals: S.vitals.current(),
+    timers: S.timers.current(),
+    clipboard: S.clip.current(),
+    audio: S.audio.current(),
+    notifications: S.notifs.current(),
+    capture: S.capture.current(),
+    weather: S.weather.current(),
+    pinned: S.store.read('pinned', null),
+    config: {
+      collapseDelayMs: cfg.collapseDelayMs,
+      hoverDelayMs: cfg.hoverDelayMs,
+      shadowPadding: cfg.shadowPadding,
+      hotkeys: cfg.hotkeys,
+    },
+  }
+}
+
+// Services start before the renderer attaches its listeners, so their first
+// update can land in the void — weather resolves once every 15 minutes, so
+// losing that one costs the whole session. Replay everything on load.
+function resync(send, cfg) {
+  const snap = snapshot(cfg)
+  for (const [name] of FEEDS) {
+    if (snap[name] !== undefined) send(`island:${name}`, snap[name])
+  }
+}
+
+function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
+  for (const [name, service] of FEEDS) {
+    service.on('update', (state) => send(`island:${name}`, state))
+  }
+  S.notifs.on('arrived', (item) => send('island:command', { type: 'notification', item }))
+  S.timers.on('fired', (t) => send('island:command', { type: 'timer-fired', timer: t }))
+  S.capture.on('recorded', (file) => send('island:command', { type: 'recorded', file }))
+  S.capture.on('shot', (file) => send('island:command', { type: 'shot', file }))
+  S.capture.on('error', (msg) => send('island:command', { type: 'capture-error', message: msg }))
+
+  ipcMain.handle('island:snapshot', () => snapshot(cfg))
+
+  // The renderer reports every visible surface; those rectangles become the
+  // window's X11 shape, so only they are clickable and everything else falls
+  // through to the desktop.
+  ipcMain.on('island:shape', (_e, rects) => {
+    if (!win || win.isDestroyed()) return
+    const pad = shapePad()
+    const shape = (rects || [])
+      .filter((r) => r && r.width > 0 && r.height > 0)
+      .map((r) => ({
+        x: Math.max(0, Math.round(r.x) - pad),
+        y: Math.max(0, Math.round(r.y) - pad),
+        width: Math.round(r.width) + pad * 2,
+        height: Math.round(r.height) + pad * 2,
+      }))
+    win.setShape(shape.length ? shape : [{ x: 0, y: 0, width: 1, height: 1 }])
+  })
+
+  ipcMain.handle('island:media', (_e, action) => S.mpris.control(action))
+
+  ipcMain.handle('island:audio-volume', (_e, pct) => S.audio.setVolume(pct))
+  ipcMain.handle('island:audio-mute', () => S.audio.toggleMute())
+
+  ipcMain.handle('island:apps-list', () => S.apps.list().map(({ file, exec, ...rest }) => rest))
+  ipcMain.handle('island:app-icon', (_e, id) => S.apps.iconDataUrl(id))
+  ipcMain.handle('island:app-launch', (_e, id) => S.apps.launch(id))
+
+  ipcMain.handle('island:capture-shot', (_e, mode) => S.capture.screenshot(mode))
+  ipcMain.handle('island:capture-record', () => S.capture.toggleRecording())
+  ipcMain.handle('island:capture-reveal', (_e, file) => S.capture.reveal(file))
+
+  ipcMain.handle('island:notif-read', () => S.notifs.markRead())
+  ipcMain.handle('island:notif-clear', () => S.notifs.clear())
+  ipcMain.handle('island:notif-remove', (_e, id) => S.notifs.remove(id))
+
+  ipcMain.handle('island:timer-add', (_e, text) => S.timers.add(text))
+  ipcMain.handle('island:timer-cancel', (_e, id) => S.timers.cancel(id))
+
+  ipcMain.handle('island:clip-copy', (_e, id) => S.clip.copy(id))
+  ipcMain.handle('island:clip-remove', (_e, id) => S.clip.remove(id))
+  ipcMain.handle('island:clip-clear', () => S.clip.clear())
+  ipcMain.handle('island:clip-pause', (_e, paused) => S.clip.setPaused(paused))
+
+  // Generic document store for the notes, board and budget panels.
+  ipcMain.handle('island:store-get', (_e, key, fallback) => S.store.read(key, fallback))
+  ipcMain.handle('island:store-set', (_e, key, value) => S.store.write(key, value))
+
+  ipcMain.handle('island:convert-pick', (_e, mode) => S.convert.pick(mode))
+  ipcMain.handle('island:convert-run', (_e, mode, files) => S.convert.convert(mode, files))
+  ipcMain.handle('island:convert-reveal', (_e, file) => S.convert.reveal(file))
+
+  ipcMain.on('island:menu', () => {
+    if (!win || win.isDestroyed()) return
+    Menu.buildFromTemplate([
+      { label: 'Hide panel', click: onHide },
+      { label: 'Reload', click: () => win.reload() },
+      { type: 'separator' },
+      { label: 'Quit', click: onQuit },
+    ]).popup({ window: win })
+  })
+}
+
+function startServices(cfg) {
+  S.vitals.start(cfg.vitals.pollMs)
+  S.timers.start()
+  S.clip.start(cfg.clipboard)
+  S.audio.start()
+  S.mpris.start()
+  S.notifs.start()
+  S.weather.start(cfg.weatherCity)
+}
+
+function stopServices() {
+  for (const s of Object.values(S)) if (typeof s.stop === 'function') s.stop()
+}
+
+module.exports = { wire, startServices, stopServices, snapshot, resync, services: S }

@@ -1,0 +1,14 @@
+{
+  "name": "island",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Dynamic Island for KDE Plasma on X11",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "ISLAND_DEV=1 electron ."
+  },
+  "dependencies": {
+    "dbus-next": "^0.10.2"
+  }
+}
