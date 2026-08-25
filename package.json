@@ -1,8 +1,7 @@
 {
   "name": "island",
   "version": "0.1.0",
-  "private": true,
-  "description": "A Dynamic Island for KDE Plasma on X11",
+  "description": "A Dynamic Island for Linux \u2014 a top-edge panel for KDE Plasma on X11",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
@@ -10,5 +9,26 @@
   },
   "dependencies": {
     "dbus-next": "^0.10.2"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dynamic-island",
+    "notch",
+    "kde",
+    "plasma",
+    "x11",
+    "linux",
+    "electron",
+    "panel",
+    "desktop-widget",
+    "mpris"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marina21-cs/island.git"
+  },
+  "homepage": "https://github.com/marina21-cs/island",
+  "bugs": {
+    "url": "https://github.com/marina21-cs/island/issues"
   }
 }

@@ -1,77 +1,162 @@
+<div align="center">
+
 # Island
 
-A Dynamic Island for KDE Plasma on X11 — a panel that hangs from the top edge
-of the screen, collapsed to a pill until you hover it, then opening into a
-tabbed launcher.
+**A Dynamic Island for Linux.** A panel that hangs from the top edge of the
+screen, collapsed to a pill until you reach for it.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-2f6feb.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-KDE%20Plasma%20%C2%B7%20X11-1db954)
+![Electron](https://img.shields.io/badge/Electron-39-47848f)
+![No build step](https://img.shields.io/badge/build%20step-none-8b8b93)
+
+<img src="docs/shot-idle.png" alt="The collapsed pill" width="330">
+
+</div>
+
+---
+
+Most desktop widgets ask for a slice of your screen and keep it. Island takes
+none. It sits as a small pill at the top edge, thins out further when you
+ignore it, and opens into a full panel only when the pointer arrives. Every
+pixel that isn't the panel belongs to whatever is underneath — clicks pass
+straight through.
+
+<div align="center">
+<img src="docs/shot-activity.png" alt="Now playing" width="470">
+</div>
+
+Start playing something and it announces the track once, tinted by the cover's
+own colour, then gets out of the way. Scroll a feed of videos and it stays a
+quiet pill instead — a browser making noise is not a new song.
+
+## Panels
+
+<div align="center">
+<img src="docs/shot-home.png" alt="Home" width="760">
+</div>
+
+| | |
+|---|---|
+| **Home** | Now playing with transport and the source app's icon, a week calendar, weather, screenshot and screen recording |
+| **Tray** | App launcher built from your `.desktop` entries, with pinning and search |
+| **Stats** | CPU, memory, GPU and battery with real numbers, plus network throughput |
+| **Weather** | Hourly and daily forecast on a shared scale, over a dark map of where you are |
+| **Alerts** | Live desktop notifications with an unread badge |
+| **Board** | Kanban with drag-and-drop, plus notes |
+| **Tools** | Calculator, document converter, budget tracker |
+| **More** | Countdown timers and clipboard history |
+
+<div align="center">
+<img src="docs/shot-weather.png" alt="Weather with map" width="760">
+<br><em>Forecast from Open-Meteo; map tiles fetched and composited in the main process</em>
+<br><br>
+<img src="docs/shot-board.png" alt="Board" width="760">
+</div>
+
+## Install
+
+Requires **KDE Plasma on X11**, Node 18+, and the `electron` package.
 
 ```bash
+git clone https://github.com/marina21-cs/island.git
+cd island
 npm install
-npm start          # or: npm run dev  (opens devtools detached)
+./scripts/island install
 ```
 
-## How it stays out of the way
+That copies the app to `~/.local/lib/island`, installs a systemd user service,
+and starts it at every graphical login. The checkout is then free — move it,
+delete it, keep hacking on it; the running panel does not care.
 
-The window spans the full width of the display and is 560px tall, but only the
-panel and the chips beside it are clickable. Everything else falls through to
-whatever is underneath.
-
-That is done with the **X11 shape extension**, not `setIgnoreMouseEvents`.
-Two things rule the obvious approaches out on Linux:
-
-- `setIgnoreMouseEvents(true, { forward: true })` — the `forward` option is
-  **macOS and Windows only**. On X11 a click-through window receives no mouse
-  events at all, so the renderer can never notice the pointer arriving.
-- Polling `screen.getCursorScreenPoint()` from the main process does not rescue
-  it. That value only refreshes when the app itself receives input, so once the
-  window goes click-through it **freezes at the last known position**.
-
-`win.setShape(rects)` has neither problem: the X server clips both input and
-rendering to the region, so hover arrives as an ordinary DOM `mouseenter`. The
-renderer reports the live rectangle of every `.surface` element on a rAF pump
-while transitions run, and main turns that into the shape.
-
-The one cost is that the shape clips **rendering** as well, so an outer drop
-shadow would be sliced off at a hard edge. The panel ships without one — the
-real Dynamic Island has no shadow either, it is a display cutout. Set
-`shadowPadding` in `config.json` to trade a small dead zone for a shadow.
-
-## Tabs
-
-| Tab | What it does | Backed by |
-|---|---|---|
-| **Home** | Now playing with transport, week calendar, weather, screenshot + record | MPRIS over D-Bus, Open-Meteo, `spectacle`, `ffmpeg` |
-| **Tray** | App launcher; pins persist, search covers everything installed | `.desktop` entries + icon theme lookup |
-| **Alerts** | Live desktop notifications with an unread badge | D-Bus `BecomeMonitor` |
-| **Board** | Kanban (drag or click to advance) and notes | JSON in `userData` |
-| **Tools** | Calculator, document converter, budget tracker | `magick`, `soffice` |
-| **More** | Countdown timers and clipboard history | Electron `clipboard` |
-
-Beside the panel: CPU / RAM / GPU chips, a record toggle, and a volume slider
-that appears while the panel is open.
-
-## Notifications
-
-Island **watches** the bus rather than owning `org.freedesktop.Notifications`.
-Claiming that name would take it from Plasma and break your real
-notifications, so it opens a second, read-only monitor connection instead.
+```bash
+island status      # what is running, from where, and what starts it
+island restart
+island logs -f
+island update      # redeploy from the checkout
+island uninstall   # leaves your data in ~/.config/island
+```
 
 ## Keys
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Alt+Space` | Toggle the panel open |
-| `Ctrl+Alt+V` | Open clipboard history |
-| `Ctrl+Alt+Shift+T` | Open timers |
+| `Ctrl+Alt+Space` | Toggle the panel |
+| `Ctrl+Alt+V` | Clipboard history |
+| `Ctrl+Alt+Shift+T` | Timers |
 | `Ctrl+Alt+S` | Screenshot a region |
 | `Ctrl+Alt+Shift+Q` | Quit |
-| `1`–`6` | Jump between tabs (once the panel has focus) |
-| `Esc` | Unpin and collapse |
+| `Alt+1`–`Alt+8` | Jump between panels |
+| `Esc` | Close the menu, then unpin |
 
-`Ctrl+Alt+T` is deliberately **not** used — Plasma binds it to Konsole.
-Rebind anything in `~/.config/island/config.json`; a binding Plasma already
-owns fails to register and is reported on stdout rather than failing silently.
+`Ctrl+Alt+T` is deliberately unused — Plasma binds it to Konsole. A binding
+Plasma already owns fails to register and says so on stdout instead of failing
+silently.
 
-## Config
+## Two things that cost a day to find
+
+Both of these are the reason this project exists in the shape it does, and
+neither is obvious from the documentation.
+
+### `setIgnoreMouseEvents` cannot work on X11
+
+The natural way to build a click-through overlay is a full-screen transparent
+window that ignores the pointer except where the UI is:
+
+```js
+win.setIgnoreMouseEvents(true, { forward: true })   // ← macOS and Windows only
+```
+
+`forward` is not implemented on Linux. Without it a click-through window
+receives **no mouse events at all**, so the renderer can never notice the
+pointer arriving. Polling from the main process does not rescue it either:
+
+```js
+setInterval(() => screen.getCursorScreenPoint(), 50)   // ← freezes
+```
+
+That value only refreshes when the app itself receives input, so the moment the
+window goes click-through it sticks at the last known position. Measured over
+five real pointer moves it reported the same coordinates every time.
+
+**The X11 shape extension has neither problem.** The server clips input *and*
+rendering to a region, so hover arrives as an ordinary DOM `mouseenter` and
+everything outside reaches the desktop:
+
+```js
+win.setShape([{ x, y, width, height }])
+```
+
+The renderer reports the live rectangle of every floating surface on a rAF pump
+while transitions run, and the main process turns that into the shape. One
+consequence worth knowing: the shape clips rendering too, so an outer drop
+shadow gets sliced at a hard edge. The panel ships without one — the real
+Dynamic Island has no shadow either.
+
+### Plasma on X11 runs a second D-Bus session
+
+`startplasma-x11` spawns its own `dbus-daemon` rather than using the systemd
+user bus. So your desktop applications sit on one bus:
+
+```
+DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-XXXXXXXX
+```
+
+…while anything systemd starts for you gets another:
+
+```
+DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+```
+
+They are different buses. A panel started by systemd listens on one that no
+media player or notification ever appears on — MPRIS and notifications are both
+silently dead, while launching the same binary from a shell works perfectly.
+
+`island autostart` writes the session's real bus address to `session.env`,
+which the unit reads. Per-unit, not a global `set-environment`, which would
+hand the session bus to every other user service too.
+
+## Configuration
 
 `~/.config/island/config.json`, merged over the defaults in
 `src/main/config.js`:
@@ -79,8 +164,11 @@ owns fails to register and is reported on stdout rather than failing silently.
 ```json
 {
   "weatherCity": "Manila",
+  "weatherLat": null,
+  "weatherLon": null,
   "hoverDelayMs": 220,
   "collapseDelayMs": 700,
+  "dormantDelayMs": 90000,
   "shadowPadding": 0,
   "hotkeys": { "toggle": "Control+Alt+Space" }
 }
@@ -89,80 +177,19 @@ owns fails to register and is reported on stdout rather than failing silently.
 State lives beside it: `board.json`, `notes.json`, `budget.json`,
 `timers.json`, `clipboard.json`, `pinned.json`.
 
-## Install as a permanent service
-
-```bash
-./scripts/island install
-```
-
-That copies the app to `~/.local/lib/island` (self-contained — the checkout can
-be moved or deleted afterwards), installs a systemd user unit, and wires it to
-start at every graphical login. Re-run it to deploy changes.
-
-```bash
-island status      # what is running, from where, and what starts it
-island restart
-island logs -f
-island uninstall   # leaves ~/.config/island alone
-```
-
-### Why not WantedBy=graphical-session.target
-
-The obvious wiring does not work on this machine, and the two alternatives are
-worse:
-
-- `graphical-session.target` **never activates** — Plasma is started by
-  `startplasma-x11`, not by systemd, so a unit wanting that target sits idle
-  forever.
-- `default.target` is reached **at boot**, because lingering is enabled. The
-  panel would launch before an X server exists and crash-loop with no
-  `DISPLAY`.
-
-So the unit is wired to no target, and an XDG autostart entry starts it once
-the desktop is actually up. That entry runs `island autostart`, which first
-re-imports `DISPLAY` and `XAUTHORITY` into the user manager — `XAUTHORITY` is a
-fresh `/tmp` path every session, and the user manager survives logout, so a
-stale value would point at a dead cookie. It also clears any failed state left
-by the previous logout, or the next start would be refused as "repeated too
-quickly".
-
-The `[Install] WantedBy=graphical-session.target` is kept for portability: on a
-systemd-managed session (Plasma on Wayland) the target does activate and the
-unit starts from it. Both paths together are safe — the autostart entry issues
-a restart, and the app holds a single-instance lock.
-
-### Window type
-
-The panel is a `toolbar`-type window, not a normal one. `skipTaskbar: true`
-looks like the right answer but this Electron build never writes
-`_NET_WM_STATE_SKIP_TASKBAR` on X11 for any window type — verified by probing
-all five types — so the panel appeared in KDE's task manager and set
-`_NET_WM_STATE_DEMANDS_ATTENTION` on itself every launch. A toolbar window is
-excluded from the task manager and alt-tab by its type, still accepts keyboard
-focus for the panel's inputs, and still honours the screen-saver
-always-on-top level.
-
-The tray's **Start at login** checkbox toggles the same autostart entry, so it
-stays in step with the installer rather than setting up a second, unsupervised
-launch path.
-
-## The gear menu
-
-The ⚙ in the nav opens an in-panel menu holding the volume and brightness
-sliders, the login and clipboard toggles, and hide/reload/quit. Right-clicking
-the panel opens it too. It replaced Electron's native context menu, which
-cannot host a slider, and a pair of vertical sliders that used to float beside
-the panel and took up screen edge for two controls.
-
 ## Brightness
 
-The slider works today, but in software: `xrandr --brightness` on the primary
-output, which is a gamma curve. It dims what you see; it does not dim the
-backlight, so it saves no power and cannot go above 100%.
+<div align="center">
+<img src="docs/shot-menu.png" alt="The gear menu" width="620">
+</div>
 
-Hardware control needs write access to `/sys/class/backlight/amdgpu_bl1`,
-which is root-only by default. Grant it once and the panel switches over on
-its own — it prefers hardware whenever the file is writable:
+The slider works out of the box, but in software: `xrandr --brightness`, which
+is a gamma curve. It dims what you see; it does not dim the backlight, so it
+saves no power and cannot exceed 100%.
+
+Hardware control needs write access to `/sys/class/backlight/*/brightness`,
+which is root-only by default. Grant it once and the panel switches over on its
+own — it prefers hardware whenever the file is writable:
 
 ```bash
 echo 'ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"' \
@@ -172,32 +199,64 @@ sudo usermod -aG video "$USER"
 
 Log out and back in for the group to take effect.
 
-## Weather and the map
+## Architecture
 
-Numbers come from Open-Meteo: no API key, hourly for eight hours and daily for
-six. The map is CARTO's dark basemap, fetched and composited in the main
-process — the renderer's CSP allows no remote images, and it should stay that
-way — then cached for a day under the temp directory.
-
-Windy's own forecast API needs an account key, so the **Windy** button opens
-windy.com at the resolved coordinates rather than pretending to have data it
-cannot fetch. Add a key and the numbers could come from Windy instead.
-
-## Not wired up
-
-- **FPS counter** — the reference shows one, but FPS is per-application. It
-  needs a hook like MangoHud, not a system readout. The chip shows CPU instead.
-
-## Layout
+No bundler, no transpile, no build step. The source *is* what runs.
 
 ```
-src/main/          window, shape, hotkeys, tray, autostart
-src/main/services/ mpris, vitals, audio, apps, notifications, capture,
-                   weather, timers, clipboard, convert, store
-src/preload/       contextBridge surface
-src/renderer/      core.js (shape + modes + tab registry), boot.js, tabs/
+src/main/          window, X11 shape, hotkeys, tray, autostart
+src/main/services/ mpris · vitals · audio · brightness · apps · notifications
+                   capture · weather · map · timers · clipboard · convert · store
+src/preload/       the contextBridge surface
+src/renderer/      core.js (shape, modes, tab registry) · boot.js · tabs/
 ```
 
-Adding a tab means one file in `src/renderer/tabs/` calling
-`Island.registerTab({ id, label, icon, width, height, mount, update })`, plus a
-`<script>` line in `index.html`.
+Adding a panel is one file in `src/renderer/tabs/` plus a `<script>` line:
+
+```js
+Island.registerTab({
+  id: 'example',
+  label: 'Example',
+  icon: svg('<path d="…"/>'),
+  width: 560,
+  height: 320,
+  mount(pane) { /* build your DOM */ },
+  update(kind, data) { /* called on every service feed */ },
+})
+```
+
+The nav sizes itself to whatever is registered, so a new panel cannot silently
+clip the tab row.
+
+## Privacy
+
+Everything stays on your machine. There is no telemetry and no account. Three
+things reach the network, all of them optional and all of them fetched by the
+main process so the renderer's strict `Content-Security-Policy` never has to
+allow remote content:
+
+- **Open-Meteo** for the forecast — no API key, no identifier, just coordinates
+- **CARTO** basemap tiles for the map, cached locally for a day
+- **Cover art** for whatever is playing, when the player supplies an `https` URL
+
+## Known limits
+
+- **Wayland is not supported.** The whole click-through approach is the X11
+  shape extension. A Wayland port wants `wlr-layer-shell`, which is a different
+  design, not a flag.
+- **No FPS counter.** FPS is per-application; it needs a hook like MangoHud, not
+  a system readout. The Stats panel shows CPU instead.
+- **Windy's forecast API needs an account key**, so the Windy button opens
+  windy.com at your coordinates rather than pretending to have data it cannot
+  fetch.
+
+## Credits
+
+Built for KDE Plasma with [Electron](https://electronjs.org).
+Forecast by [Open-Meteo](https://open-meteo.com).
+Map tiles © [OpenStreetMap](https://openstreetmap.org/copyright) contributors,
+tiles by [CARTO](https://carto.com/attributions).
+
+## License
+
+[MIT](LICENSE)
