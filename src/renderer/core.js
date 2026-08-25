@@ -197,6 +197,7 @@ function showActivity(ms = 5200) {
 
 function setMode(mode) {
   if (state.mode === mode) return
+  const previous = state.mode
   state.mode = mode
   if (mode === 'expanded') {
     state.hovering = false
@@ -205,6 +206,9 @@ function setMode(mode) {
   el.notch.dataset.state = mode
   for (const layer of el.layers) layer.classList.toggle('on', layer.dataset.layer === mode)
   el.volume.classList.toggle('off', mode !== 'expanded')
+  // Hand focus back when the panel closes; a collapsed pill has nothing to
+  // type into and should not be swallowing the user's keystrokes.
+  if (mode !== 'expanded' && previous === 'expanded') api.releaseFocus()
   applySize()
   if (mode === 'expanded') {
     const tab = tabs.get(state.tab)
@@ -394,11 +398,17 @@ window.addEventListener('keydown', (e) => {
     setPinned(false)
     return
   }
-  // 1-6 jump between tabs once the panel has focus (i.e. after a click).
+  // Alt+1..7 jump between tabs. Bare digits are deliberately not used: the
+  // panel can hold keyboard focus after a click, and plain number keys meant
+  // ordinary typing was silently switching tabs out from under the user.
+  if (!e.altKey || e.ctrlKey || e.metaKey) return
   const active = document.activeElement
   if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return
   const n = Number(e.key)
-  if (state.mode === 'expanded' && n >= 1 && n <= order.length) setTab(order[n - 1])
+  if (state.mode === 'expanded' && n >= 1 && n <= order.length) {
+    e.preventDefault()
+    setTab(order[n - 1])
+  }
 })
 
 window.addEventListener('resize', () => pump())

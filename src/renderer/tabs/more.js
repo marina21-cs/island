@@ -169,8 +169,8 @@
     id: 'more',
     label: 'More',
     icon: svg('<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>'),
-    width: 524,
-    height: 344,
+    width: 570,
+    height: 374,
     mount,
     update: (kind, payload) => {
       if (kind === 'timers') {

@@ -129,6 +129,10 @@ function wire({ win, cfg, send, shapePad, onQuit, onHide }) {
   ipcMain.handle('island:convert-run', (_e, mode, files) => S.convert.convert(mode, files))
   ipcMain.handle('island:convert-reveal', (_e, file) => S.convert.reveal(file))
 
+  ipcMain.on('island:blur', () => {
+    if (win && !win.isDestroyed() && win.isFocused()) win.blur()
+  })
+
   ipcMain.on('island:menu', () => {
     if (!win || win.isDestroyed()) return
     Menu.buildFromTemplate([

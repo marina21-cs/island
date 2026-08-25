@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('island', {
 
   setShape: (rects) => ipcRenderer.send('island:shape', rects),
   openMenu: () => ipcRenderer.send('island:menu'),
+  releaseFocus: () => ipcRenderer.send('island:blur'),
 
   media: (action) => ipcRenderer.invoke('island:media', action),
 

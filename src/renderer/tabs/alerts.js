@@ -77,8 +77,8 @@
     id: 'alerts',
     label: 'Alerts',
     icon: svg('<path d="M18 8.5a6 6 0 1 0-12 0c0 6-2 7.5-2 7.5h16s-2-1.5-2-7.5"/><path d="M10.5 19.5a2 2 0 0 0 3 0"/>'),
-    width: 524,
-    height: 366,
+    width: 570,
+    height: 398,
     mount,
     update: (kind, payload) => {
       if (kind !== 'notifications') return
