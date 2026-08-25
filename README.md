@@ -217,11 +217,32 @@ suffer, which is why it is not the default.
 State lives beside it: `board.json`, `notes.json`, `budget.json`,
 `timers.json`, `clipboard.json`, `pinned.json`.
 
-## Brightness
+## The gear menu
 
 <div align="center">
-<img src="docs/shot-menu.png" alt="The gear menu" width="620">
+<img src="docs/shot-menu.png" alt="The gear menu" width="700">
 </div>
+
+The ⚙ in the nav opens an in-panel menu holding the volume and brightness
+sliders, the panel icon, the login and clipboard toggles, and
+hide/reload/quit. Right-clicking the panel opens it too. It replaced
+Electron's native context menu, which cannot host a slider.
+
+### Changing the panel icon
+
+**Panel icon → Change…** takes any image — PNG, JPEG, WebP, GIF, SVG — and
+normalises it to a 96px square stored in `~/.config/island/icon.png`. The
+original can be moved or deleted afterwards; nothing points back at it.
+**Reset** returns to the built-in icon, and only appears once you have set one.
+
+Small sources are treated as pixel art: anything 128px or under is scaled with
+nearest-neighbour and rendered with crisp edges, because smooth resampling
+turns a sprite to mush at 26px. Larger images are resampled normally and
+rendered smooth, because pixel-art rendering does the same damage to a
+photograph in the other direction. Which of the two applies is decided once, at
+import, and stored beside the image rather than guessed again at paint time.
+
+## Brightness
 
 The slider works out of the box, but in software: `xrandr --brightness`, which
 is a gamma curve. It dims what you see; it does not dim the backlight, so it
