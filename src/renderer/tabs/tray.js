@@ -98,6 +98,7 @@
       iconFor(app.id).then((url) => {
         if (url) img.src = url
         else img.replaceWith(h('span.tr-icon.tr-fallback', { text: app.name.slice(0, 1) }))
+        fitHeight()
         I.syncShape()
       })
 
@@ -128,16 +129,29 @@
         ? 'click to unpin'
         : `${pinned.length}/${MAX_PINNED} pinned`
 
-    // Height follows the number of rows, so a half-full grid does not leave a
-    // slab of empty panel below it.
-    const rows = Math.max(1, Math.ceil(items.length / 7))
-    const def = I.tabs.get('tray')
-    const next = 34 + 11 + rows * 56 + 6 + 26 + 12
-    if (def.height !== next) {
+    fitHeight()
+    I.pump(150)
+  }
+
+  // Height follows the content, so a half-full grid does not leave a slab of
+  // empty panel below it. Measuring a tile right after append reads short —
+  // the icons have not settled — so the grid is briefly laid out at its
+  // natural height and measured there instead.
+  function fitHeight() {
+    requestAnimationFrame(() => {
+      const prev = ui.grid.style.height
+      ui.grid.style.height = 'auto'
+      const content = ui.grid.scrollHeight
+      ui.grid.style.height = prev
+      if (!content) return
+      const def = I.tabs.get('tray')
+      const chrome = 34 + 11 + 6 + 26 + 12 // nav + pane padding + search bar
+      const next = chrome + content
+      if (def.height === next) return
       def.height = next
       if (I.state.tab === 'tray' && I.state.mode === 'expanded') I.applySize()
-    }
-    I.pump(150)
+      I.pump(150)
+    })
   }
 
   async function load() {
